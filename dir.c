@@ -56,7 +56,7 @@ int create_dir(char* path){
     return 1;
 }
 
-int delete_dir(char *path){
+int remove_dir(char *path){
     
     char* full_path;
     struct stat st_path, st_entry;
@@ -97,7 +97,7 @@ int delete_dir(char *path){
         }
 
         if (S_ISDIR(st_entry.st_mode)) {
-            if (delete_dir(full_path) == -1) {
+            if (remove_dir(full_path) == -1) {
                 closedir(dir);
                 return -1;
             }
@@ -139,13 +139,13 @@ int main(int argc, char *argv[]) {
 
 
    if(!strcmp(argv[1],"rm")){
-    if(delete_dir(argv[2])){
+    if(remove_dir(argv[2])){
         printf("%s was deleted\n", argv[2]);
     }else{
         fprintf(stderr, "Failed to remove directory: %s\n", argv[2]);
         return EXIT_FAILURE;
     }
    }
-   
+
    return 0;
 }
