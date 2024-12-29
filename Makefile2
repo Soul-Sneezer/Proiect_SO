@@ -5,17 +5,17 @@ LDFLAGS =
 
 # Source files
 SRCS = \
-    ./telemetry.c \
+    ./telemetry_sv.c \
 	./error_functions.c 
 
 # Header files
 HDRS = \
     ./error_functions.h \
     ./tlpi_hdr.h \
-    ./telemetry.h
+    ./telemetry_sv.h
 
 # Output executable
-TARGET = telemetry_cl
+TARGET = telemetry_sv
 
 # Default target
 all: $(TARGET)

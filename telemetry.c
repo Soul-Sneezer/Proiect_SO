@@ -88,7 +88,7 @@ static bool isValidIP(const char* ip) // checks if it's a valid IP(v4 or v6), do
             }
         }
     }
-        
+
     return true;
 }
 
@@ -113,17 +113,30 @@ static bool isValidChannelName(const char* channel_name)
     return true;
 }
 
-static bool isValidPort(const char* port)
+static int isValidPort(const char* port)
 {
     if(port == NULL || *port == '\0') // port can be null
-        return true;
+        return 0;
 
-    return false;
+    uint32_t value = 0;
+
+    while(*port != '\0') {
+        if(!isDecimal(*port))
+            return -1;
+        value = value * 10 + (*port - '0');
+        port++;
+    }
+
+    if(value < 1024 || value > 65565)
+        return -1;
+
+    return value;
 }
 
 tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const char* port)
 {
     tlm_t new_tlm;
+    uint32_t port_value;
 
     if (!isValidIP(channel_name)) {
         fatal("Invalid IP. Expected input is an IPv4 address of the form:'n.n.n.n' where n is a 8 bit unsigned value OR\n \ 
@@ -131,7 +144,7 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
                                     a domain name."); 
     }
 
-    if (!isValidPort(port)) {
+    if ((port_value = isValidPort(port)) == -1) {
         fatal("Invalid port. Port value can be anything between 1024 and 65565(both inclusive).");
     }
 
