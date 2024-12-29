@@ -1,10 +1,11 @@
-#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 
 #include <syslog.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include "telemetry.h"
+#include "rw_func.h"
 
 static bool isDecimal(char c)
 {
@@ -135,14 +136,14 @@ static int isValidPort(const char* port)
 
 tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const char* port)
 {
-    tlm_t new_tlm;
+    tlm_t new_tlm = {-1};
     uint32_t port_value;
 
-    if (!isValidIP(channel_name)) {
+    /*if (!isValidIP(channel_name)) {
         fatal("Invalid IP. Expected input is an IPv4 address of the form:'n.n.n.n' where n is a 8 bit unsigned value OR\n \ 
                                     an IPv6 address of the form:'hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh' where h is a hexadecimal value OR\n \
                                     a domain name."); 
-    }
+    }*/
 
     if ((port_value = isValidPort(port)) == -1) {
         fatal("Invalid port. Port value can be anything between 1024 and 65565(both inclusive).");
@@ -151,7 +152,12 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
     if (!isValidChannelName(channel_name)) {
         fatal("Invalid channel name. Must be a valid absolute UNIX path.");
     }
-
+    
+    size_t n = strlen(channel_name);
+    new_tlm.channel_path = (char*)malloc((n + 1) * sizeof(char));
+    strncpy(new_tlm.channel_path, channel_name, n);
+    new_tlm.channel_path[n] = '\0';
+    
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int sfd, s; 
@@ -167,7 +173,7 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
 
     if (s != 0 ) {
         errno = ENOSYS;
-        return -1;
+        return new_tlm;
     }
 
     for (rp = result; rp != NULL; rp = rp->ai_next) {
@@ -183,7 +189,8 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
 
     freeaddrinfo(result);
 
-    return (rp == NULL) ? -1 : sfd;
+    new_tlm.sfd = sfd;
+    return new_tlm;
 }
 
 int32_t tlm_callback(tlm_t token, void (*message_callback)(tlm_t token, const char* message))
@@ -196,13 +203,55 @@ const char* tlm_read(tlm_t token, uint32_t* message_id)
 
 int tlm_post(tlm_t token, const char* message)
 {
+    size_t message_length = strlen(message);
+    size_t channel_length = strlen(token.channel_path);
+    
+    if (message_length > 255) {
+    }
+
+    if (channel_length > 255) {
+    }
+
+    uint8_t msg_len = message_length;
+    uint8_t chn_len = channel_length;
+    uint8_t opcode = 3;
+
+    // send information to server
+    if (writen(token.sfd, &opcode, 1) < 0) {
+        return -1;
+    }
+    
+    if (writen(token.sfd, &chn_len, 1) < 0) {
+        return -1;
+    }
+
+    if (writen(token.sfd, &msg_len, 1) < 0) {
+        return -1;
+    }
+
+    if (writen(token.sfd, token.channel_path, channel_length) < 0) {
+        return -1;
+    }
+
+    if (writen(token.sfd, message, message_length) < 0) {
+        return -1;
+    }
+
+    return 0;
 }
 
 void tlm_close(tlm_t token)
 {
-    close(token);
+    free(token.channel_path);
+    close(token.sfd);
 }
 
 int tlm_type(tlm_t token)
 {
+}
+
+int main()
+{
+    tlm_t ntlm = tlm_open(1, "/home/user/channel/a", "127.0.0.1", "12000");
+    tlm_post(ntlm, "Hello World");
 }

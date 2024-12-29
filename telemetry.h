@@ -11,7 +11,10 @@
 
 #define DAEMON_DEFAULT_PORT 12001
 
-typedef int32_t tlm_t; // ma gandesc ca tlm_t poate fi doar id-ul canalului
+typedef struct {
+    int sfd;
+    char* channel_path;
+}tlm_t; // ma gandesc ca tlm_t poate fi doar id-ul canalului
                        // signed pentru error reporting
 
 tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const char* port);

@@ -5,12 +5,14 @@ LDFLAGS =
 
 # Source files
 SRCS = \
-    ./telemetry.c \
+    ./rw_func.c \
+	./telemetry.c \
 	./error_functions.c 
 
 # Header files
 HDRS = \
-    ./error_functions.h \
+    ./rw_func.h \
+	./error_functions.h \
     ./tlpi_hdr.h \
     ./telemetry.h
 
