@@ -4,12 +4,11 @@
 
 ssize_t readn(int fd, void* buffer, size_t n)
 {
-    size_t bytesRead = n;
+    ssize_t bytesRead;
     size_t totBytesRead = 0;
     char* buf = buffer;
 
-    for (totBytesRead = 0; totBytesRead < n;)
-    {
+    for (totBytesRead = 0; totBytesRead < n;) {
         if((bytesRead = read(fd, buf, n - totBytesRead)) == -1) {
             if (errno == EINTR) // interrupted
                 continue;
@@ -28,12 +27,11 @@ ssize_t readn(int fd, void* buffer, size_t n)
 
 ssize_t writen(int fd, const void* buffer, size_t n)
 {
-    size_t bytesWritten = n;
+    ssize_t bytesWritten;
     size_t totBytesWritten = 0;
     const char* buf = buffer;
 
-    for (totBytesWritten = 0; totBytesWritten < n;)
-    {
+    for (totBytesWritten = 0; totBytesWritten < n;) {
         if((bytesWritten = write(fd, buf, n - totBytesWritten)) <= 0) {
             if (bytesWritten == -1 && errno == EINTR) // interrupted
                 continue;

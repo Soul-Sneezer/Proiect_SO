@@ -2,20 +2,24 @@
 #define TELEMETRY_LIB
 
 #include <stdint.h>
-#include  <stdbool.h>
+#include <stdbool.h>
+#include <time.h>
 #include "tlpi_hdr.h"
 
 #define TLM_PUBLISHER 0x1
 #define TLM_SUBSCRIBER 0x2
 #define TLM_BOTH 0x3
 
-#define DAEMON_DEFAULT_PORT 12001
+#define DAEMON_DEFAULT_PORT "12000"
 
 typedef struct {
+    int type;
+
     int sfd;
+    time_t timestamp;
+    uint32_t user;
     char* channel_path;
-}tlm_t; // ma gandesc ca tlm_t poate fi doar id-ul canalului
-                       // signed pentru error reporting
+} tlm_t; 
 
 tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const char* port);
 int32_t tlm_callback(tlm_t token, void (*message_callback)(tlm_t token, const char* message));

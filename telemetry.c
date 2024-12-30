@@ -7,90 +7,54 @@
 #include "telemetry.h"
 #include "rw_func.h"
 
-static bool isDecimal(char c)
+static bool isDecimal(const char c)
 {
     return c >= '0' && c <= '9';
 }
 
-static bool isAlphanumeric(char c)
+static bool isAlphanumeric(const char c)
 {
     return isDecimal(c) || (c >= 'a'  && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-static bool isValidIP(const char* ip) // checks if it's a valid IP(v4 or v6), domain names are also accepted
+static bool isValidDomain(const char* domain)
 {
-    if(ip == NULL || *ip == '\0') // ip can be null if server is on localhost
-        return true;
+    size_t len = strlen(domain);
+    uint8_t subdomain = 0;
+    bool dot = false;
 
-    size_t n = strlen(ip);
-    if (n > 253) // clearly not an IP, and not a domain name either
+    if (len > 253 || len < 4) { // mimimum domain name length is 4, I believe (example domain: a.co)
         return false;
-    else if(n == 39) { //
-        for (int i = 0; i < n; i++) {
-            if (i % 4 == 0 && ip[i] != ':') {
-                return false;
-            }
-            else if(!isAlphanumeric(ip[i])) {
-                return false;
-            }
-        }
     }
 
-    bool ipv4 = true;
-    uint8_t dots = 0;
-    uint32_t value = 0;
-    
-    for (int i = 0; i < n; i++) {
-        if(!isDecimal(ip[i])) // not ipv4 must be a domain
-        {
-            ipv4 = false;
-            break;
-        
-        } else if (ip[i] == '0' && value == 0) {
-            ipv4 = false;
+    for (size_t i = 0; i < len; i++) {
+        if (domain[i] == '.') {
+            if (subdomain == 0)
+                return false;
+            subdomain = 0;
+            dot = true;
         } else {
-            value = value * 10 + (ip[i] - '0');
-        }
+            if (!isAlphanumeric(domain[i]) && domain[i] != '-')
+                return false; 
 
-        if(ip[i] == '.') {
-            if(value > 255) {
-                ipv4 = false;
-                break;
-            }
-            dots++;
-            value = 0;
-        }  
+            subdomain++;
+            if (subdomain > 63)
+                return false;
+        }
     }
 
-    if(dots != 3) // means that the last part of the string was of the form  .number, so it's not a domain either
-        return false; 
-    else if(value > 255)
+    if (!dot)
         return false;
-    
-    if(ipv4)
-        return true;
-    else { // it must be a domain name 
-        uint8_t subdomain_length = 0;
-        for (int i = 0; i < 255; i++)
-        {
-            if(!isAlphanumeric(ip[i]) && ip[i] != '.' && ip[i] != '-') // unknown character
-                return false;
-            else if(ip[i] == '.') {
-                if(subdomain_length == 0) // subdomain length must be at least 1
-                    return false;
-                
-                subdomain_length = 0;
-            } else {
-                subdomain_length++;
-            }
-
-            if(subdomain_length > 63) {
-                return false;
-            }
-        }
-    }
 
     return true;
+}
+
+static bool isValidIP(const char* ip) // checks if it's a valid IP(v4 or v6), domain names are also accepted
+{
+    struct in_addr ipv4_addr;
+    struct in6_addr ipv6_addr;
+
+    return inet_pton(AF_INET, ip, &ipv4_addr) == 1 || inet_pton(AF_INET6, ip, &ipv6_addr) == 1 || isValidDomain(ip); 
 }
 
 static bool isValidChannelName(const char* channel_name)
@@ -137,13 +101,15 @@ static int isValidPort(const char* port)
 tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const char* port)
 {
     tlm_t new_tlm = {-1};
+
+    new_tlm.type = type;
     uint32_t port_value;
 
-    /*if (!isValidIP(channel_name)) {
+    if (!isValidIP(ip)) {
         fatal("Invalid IP. Expected input is an IPv4 address of the form:'n.n.n.n' where n is a 8 bit unsigned value OR\n \ 
                                     an IPv6 address of the form:'hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh' where h is a hexadecimal value OR\n \
                                     a domain name."); 
-    }*/
+    }
 
     if ((port_value = isValidPort(port)) == -1) {
         fatal("Invalid port. Port value can be anything between 1024 and 65565(both inclusive).");
@@ -195,10 +161,12 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
 
 int32_t tlm_callback(tlm_t token, void (*message_callback)(tlm_t token, const char* message))
 {
+
 }
 
 const char* tlm_read(tlm_t token, uint32_t* message_id)
 {
+
 }
 
 int tlm_post(tlm_t token, const char* message)
@@ -248,10 +216,11 @@ void tlm_close(tlm_t token)
 
 int tlm_type(tlm_t token)
 {
+    return token.type;
 }
 
 int main()
 {
-    tlm_t ntlm = tlm_open(1, "/home/user/channel/a", "127.0.0.1", "12000");
+    tlm_t ntlm = tlm_open(1, "/home/user/channel/a", "127.0.0.1", DAEMON_DEFAULT_PORT);
     tlm_post(ntlm, "Hello World");
 }
