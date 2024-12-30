@@ -10,9 +10,11 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <fcntl.h>
 
 
 int create_dir(char* path);
 int remove_dir(char *path);
+int open_log(const char *dir_name); 
 
 #endif
