@@ -9,8 +9,11 @@
 #define TLM_PUBLISHER 0x1
 #define TLM_SUBSCRIBER 0x2
 #define TLM_BOTH 0x3
+#define TLM_CLOSED 0x4
 
 #define DAEMON_DEFAULT_PORT "12000"
+#define MAX_PATH_LENGTH 256
+#define MAX_MESSAGE_LENGTH 4096
 
 typedef struct {
     int type;

@@ -17,6 +17,22 @@ static bool isAlphanumeric(const char c)
     return isDecimal(c) || (c >= 'a'  && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
+static bool isValidAlias(const char* alias) // useful if you have aliases defined in /etc/hosts
+{
+    size_t len = strlen(alias);
+
+    if (len >= 255)
+        return false;
+
+    for(size_t i = 0; i < len; i++) {
+        if (!isAlphanumeric(alias[i]) && alias[i] != '-' && alias[i] != '_') // you can also have '.' in the name, but such an alias would pass the isDomain check
+                                                          // the '_' character is also accepted, but not recommended
+            return false;
+    }
+
+    return true;
+}
+
 static bool isValidDomain(const char* domain)
 {
     size_t len = strlen(domain);
@@ -26,6 +42,9 @@ static bool isValidDomain(const char* domain)
     if (len > 253 || len < 4) { // mimimum domain name length is 4, I believe (example domain: a.co)
         return false;
     }
+
+    if (domain[0] == '-' || domain[len - 1] == '-')
+        return false;
 
     for (size_t i = 0; i < len; i++) {
         if (domain[i] == '.') {
@@ -54,7 +73,7 @@ static bool isValidIP(const char* ip) // checks if it's a valid IP(v4 or v6), do
     struct in_addr ipv4_addr;
     struct in6_addr ipv6_addr;
 
-    return inet_pton(AF_INET, ip, &ipv4_addr) == 1 || inet_pton(AF_INET6, ip, &ipv6_addr) == 1 || isValidDomain(ip); 
+    return inet_pton(AF_INET, ip, &ipv4_addr) == 1 || inet_pton(AF_INET6, ip, &ipv6_addr) == 1 || isValidDomain(ip) || isValidAlias(ip); 
 }
 
 static bool isValidChannelName(const char* channel_name)
@@ -101,22 +120,25 @@ static int isValidPort(const char* port)
 tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const char* port)
 {
     tlm_t new_tlm = {-1};
-
+    new_tlm.sfd = -1;
     new_tlm.type = type;
     uint32_t port_value;
 
     if (!isValidIP(ip)) {
-        fatal("Invalid IP. Expected input is an IPv4 address of the form:'n.n.n.n' where n is a 8 bit unsigned value OR\n \ 
+        errMsg("Invalid IP. Expected input is an IPv4 address of the form:'n.n.n.n' where n is a 8 bit unsigned value OR\n \ 
                                     an IPv6 address of the form:'hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh' where h is a hexadecimal value OR\n \
                                     a domain name."); 
+        return new_tlm;
     }
 
     if ((port_value = isValidPort(port)) == -1) {
-        fatal("Invalid port. Port value can be anything between 1024 and 65565(both inclusive).");
+        errMsg("Invalid port. Port value can be anything between 1024 and 65565(both inclusive).");
+        return new_tlm;
     }
 
     if (!isValidChannelName(channel_name)) {
-        fatal("Invalid channel name. Must be a valid absolute UNIX path.");
+        errMsg("Invalid channel name. Must be a valid absolute UNIX path.");
+        return new_tlm;
     }
     
     size_t n = strlen(channel_name);
@@ -161,23 +183,46 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
 
 int32_t tlm_callback(tlm_t token, void (*message_callback)(tlm_t token, const char* message))
 {
-
+    if (token.type == TLM_CLOSED) {
+        errMsg("Token is closed.");
+        return -1;
+    }
 }
 
 const char* tlm_read(tlm_t token, uint32_t* message_id)
 {
+    if (token.type == TLM_PUBLISHER) {
+        errMsg("Can't read from channel: opened for message publishing.");
+        return NULL;
+    }
 
+    if (token.type == TLM_CLOSED) {
+        errMsg("Token is closed.");
+        return NULL;
+    }
 }
 
 int tlm_post(tlm_t token, const char* message)
 {
+    if (token.type == TLM_SUBSCRIBER) {
+        errMsg("Can't post to channel: opened for reading.");
+        return -1;
+    }
+    
+    if (token.type == TLM_CLOSED) {
+        errMsg("Token is closed.");
+        return -1;
+    }
+
     size_t message_length = strlen(message);
     size_t channel_length = strlen(token.channel_path);
     
-    if (message_length > 255) {
+    if (message_length >= MAX_MESSAGE_LENGTH) {
+        return -1;
     }
 
-    if (channel_length > 255) {
+    if (channel_length >= MAX_PATH_LENGTH) {
+        return -1;
     }
 
     uint8_t msg_len = message_length;
@@ -210,8 +255,14 @@ int tlm_post(tlm_t token, const char* message)
 
 void tlm_close(tlm_t token)
 {
+    if (token.type == TLM_CLOSED) {
+        errMsg("Token is already closed.");
+        return;
+    }
+
     free(token.channel_path);
     close(token.sfd);
+    token.type = TLM_CLOSED;
 }
 
 int tlm_type(tlm_t token)
@@ -221,6 +272,10 @@ int tlm_type(tlm_t token)
 
 int main()
 {
-    tlm_t ntlm = tlm_open(1, "/home/user/channel/a", "127.0.0.1", DAEMON_DEFAULT_PORT);
-    tlm_post(ntlm, "Hello World");
+    tlm_t tlm1 = tlm_open(TLM_BOTH, "/home/user/channel/a", "localhost", DAEMON_DEFAULT_PORT);
+    //tlm_t tlm2 = tlm_open(1, "/home/user/channel/a", "message.competitivesubmarines.com", DAEMON_DEFAULT_PORT);
+    //tlm_post(tlm1, "Hello World");
+    tlm_post(tlm1, "Hello World");
+    tlm_close(tlm1);
+    tlm_post(tlm1, "Hello World");
 }

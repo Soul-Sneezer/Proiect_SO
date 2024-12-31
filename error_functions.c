@@ -53,7 +53,7 @@ void errMsg(const char* format, ...)
     savedErrno = errno;
 
     va_start(argList, format);
-    outputError(TRUE, errno, TRUE, format, argList);
+    outputError(FALSE, errno, TRUE, format, argList);
     va_end(argList);
 
     errno = savedErrno;

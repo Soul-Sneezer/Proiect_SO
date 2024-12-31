@@ -19,6 +19,9 @@ int32_t createServer(const char* port)
     char* message;
     uint8_t parameters[3];
 
+    tlm_sv_t new_tlm_sv;
+    new_tlm_sv.client_list = NULL;
+
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_canonname = NULL;
     hints.ai_addr = NULL;
@@ -37,6 +40,8 @@ int32_t createServer(const char* port)
         if (sfd == -1)
             continue; // error, try next address 
 
+        new_tlm_sv.sfd = sfd;
+
         if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
             errExit("setsockopt");
 
@@ -47,7 +52,7 @@ int32_t createServer(const char* port)
     }
 
     if (rp == NULL)
-        fatal("Could not bind socket to any address");
+        errMsg("Could not bind socket to any address");
 
     if (listen(sfd, BACKLOG) == -1)
         errExit("listen");
@@ -72,6 +77,13 @@ int32_t createServer(const char* port)
             continue;
         }
         printf("received request type: %u\n", parameters[0]);
+
+        switch (parameters[0]) {
+            case READ_OPERATION:
+            case WRITE_OPERATION:
+            default:
+                errMsg("Unknown operation type");
+        }
 
         if (readn(cfd, &parameters[1], 1) < 0) {
             close(cfd);
@@ -113,6 +125,23 @@ int32_t createServer(const char* port)
 
     free(channel_path);
     free(message);
+}
+
+static int addToList(cl_list* list, uint32_t client)
+{
+}
+
+static int freeList(cl_list* list)
+{
+    free(list->cfds);
+    list->count = 0;
+    list->size = 0;
+}
+
+int closeServer(tlm_sv_t sv_token)
+{
+   close(sv_token.sfd);
+   freeList(sv_token.client_list);
 }
 
 int main()
