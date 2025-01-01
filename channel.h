@@ -16,6 +16,7 @@
 #define UNKNOWN_ERROR -4
 #define PUBLISHERS_CANNOT_READ NULL
 #define CHANNEL_CLOSED -5
+#define FAILED_TLM_OPEN -6
 
 typedef int tlm_t;
 

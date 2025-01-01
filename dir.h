@@ -3,6 +3,7 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,12 +11,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <errno.h>
-#include <stdbool.h>
-#include <fcntl.h>
 
 int create_dir(char *path);
 int remove_dir(char *path);
-int open_log(const char *dir_name); 
+int open_log(const char *dir_name);
 
 #endif

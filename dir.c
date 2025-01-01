@@ -130,7 +130,7 @@ int open_log(const char *dir_name) {
   strcpy(log_path, dir_name);
   strcat(log_path, "/log.txt");
 
-  int fd = open(log_path, O_WRONLY | O_APPEND);
+  int fd = open(log_path, O_RDWR);
   free(log_path);
 
   if (fd == -1) {
