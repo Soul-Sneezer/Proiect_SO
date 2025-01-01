@@ -3,9 +3,9 @@
 #include <stdlib.h>
 
 int main(int argc, char *argv[]) {
-
-  if (argc != 3) {
-    printf("The command is incomplete: %s <add|rm> path\n", argv[0]);
+    
+   if(argc != 3){
+    printf("The command is incomplete: %s <add|rm|check> path\n", argv[0]);
     return 0;
   }
 
@@ -23,9 +23,18 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "Failed to remove directory: %s\n", argv[2]);
       return EXIT_FAILURE;
     }
-  } else {
-    printf("The command is incomplete: %s <add|rm> path\n", argv[0]);
-  }
+   }else if(!strcmp(argv[1],"check")){
+    int fd = open_log(argv[2]);
+    if(fd == -1){
+        printf("The path does not exist!\n");
+    }else{
+        printf("The path exists!\n");
+        write(fd,"Succes", strlen("Succes"));
+    }
+    close(fd);
+   }else{
+    printf("The command is incomplete: %s <add|rm|check> path\n", argv[0]);
+   }
 
   return 0;
 }

@@ -107,5 +107,66 @@ int remove_dir(char *path) {
     return -1;
   }
 
-  return 1;
+
+        if (lstat(full_path, &st_entry) == -1) {
+            printf("%s \n", full_path);
+            perror("lstat");
+            closedir(dir);
+            return -1;
+        }
+
+        if (S_ISDIR(st_entry.st_mode)) {
+            if (remove_dir(full_path) == -1) {
+                closedir(dir);
+                return -1;
+            }
+        }else{
+            if (unlink(full_path) == -1) {
+                perror("unlink");
+                closedir(dir);
+                return -1;
+            }
+        }
+    }
+
+    closedir(dir);
+
+    if (rmdir(path) == -1) {
+        perror("rmdir");
+        return -1;
+    }
+
+    return 1;
+}
+
+int open_log(const char *dir_name) {
+
+    struct stat st_path;
+    if(stat(dir_name, &st_path) == -1){//verificam sa exista path-ul
+        return -1;
+    }
+    
+    if(!S_ISDIR(st_path.st_mode)){//vedem sa fie director
+        return -1;
+    }
+
+
+    char* log_path = malloc(strlen(dir_name) + 1 + 8); // dir_name + /log.txt + 1
+    if(!log_path){
+        perror("malloc");
+        return -1;
+    }
+   
+    strcpy(log_path, dir_name);
+    strcat(log_path, "/log.txt");
+
+    int fd = open(log_path, O_WRONLY | O_APPEND);
+    free(log_path);
+
+    if (fd == -1) {
+        perror("open");
+        return -1;
+    }
+    //daca totul a mers bine il trimitem
+    return fd;
 }
