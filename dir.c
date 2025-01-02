@@ -2,10 +2,12 @@
 
 int create_dir(char* path){
 
+    char* copy_path;
+    copy_path = malloc(strlen(path) + 1);
+    strcpy(copy_path, path);
     struct stat st = {0};
-
     //avem nevoie de un temp pentru a accesa lungimea path-ului
-    char *temp = malloc(strlen(path) + 1);
+    char *temp = malloc(strlen(copy_path) + 1);
     if(!temp){
         perror("malloc");
         free(temp);
@@ -15,7 +17,7 @@ int create_dir(char* path){
     temp[0] = '\0';
 
     //ne apucam sa parsam path-ul dupa separatorul '/'
-    char *p = strtok(path,"/");
+    char *p = strtok(copy_path,"/");
 
     while(p){
         if(strlen(temp) > 0){
