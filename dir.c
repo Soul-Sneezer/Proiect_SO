@@ -68,6 +68,8 @@ int remove_dir(char *path){
         return -1;
     }
 
+    printf("%s\n", path);
+
     while((entry = readdir(dir))!=NULL){
         
         if(!strcmp(entry->d_name, ".") || !strcmp(entry->d_name,"..")){
@@ -81,7 +83,6 @@ int remove_dir(char *path){
 
 
         if (lstat(full_path, &st_entry) == -1) {
-            printf("%s \n", full_path);
             perror("lstat");
             closedir(dir);
             return -1;
@@ -128,7 +129,7 @@ int open_log(const char *dir_name) {
         perror("malloc");
         return -1;
     }
-   
+
     strcpy(log_path, dir_name);
     strcat(log_path, "/log.txt");
 
@@ -141,4 +142,84 @@ int open_log(const char *dir_name) {
     }
     //daca totul a mers bine il trimitem
     return fd;
+}
+
+node_list* create_node(char *path){//nodul trebuie creat
+    node_list* node = (node_list*)malloc(sizeof(node_list));
+    if(!node){
+        perror("Node creation");
+        exit(EXIT_FAILURE);
+    }
+
+    node->path = malloc(strlen(path));
+    strcpy(node->path,path);
+    node->next = NULL;
+    return node;
+}
+
+void add_node(node_list** head, char* path){
+    node_list* node = create_node(path);
+    node->next = *head;
+    *head = node;    
+}
+
+void delete_list(node_list* head){
+    while(head){
+        node_list* temp = head;
+        head = head->next;
+        free(temp->path);
+        free(temp);
+    }
+}
+
+int get_dir(char* dir_path, node_list** head){
+    char* full_path;
+    struct stat st_path;
+    struct dirent *entry;
+    DIR *dir;
+    
+    if(stat(dir_path, &st_path) != 0){ //verificam statusul path-ului
+        perror("path status denied");
+        return -1;
+    }
+
+    if(!(dir = opendir(dir_path))){
+        perror("opendir");
+        return -1;
+    }
+
+    add_node(head, dir_path);
+
+    while((entry=readdir(dir)) != NULL){
+        
+        if(!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")){
+            continue;
+        }
+    
+
+        full_path = malloc(strlen(dir_path) + strlen(entry->d_name) + 2);
+        strcpy(full_path, dir_path);
+        strcat(full_path, "/");
+        strcat(full_path, entry->d_name);
+
+
+        if(lstat(full_path, &st_path) == -1){
+            perror("lstat");
+            closedir(dir);
+            return -1;
+        }
+
+        if(S_ISDIR(st_path.st_mode)){
+            if(get_dir(full_path, head) == -1){
+                perror("dir");
+                closedir(dir);
+                return -1;
+            }
+        }
+    }
+
+    closedir(dir);
+
+    return 1;
+
 }
