@@ -7,6 +7,15 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+size_t getMessage(const char* path, char* message) // barebones for now
+{
+    size_t n = strlen("Hello world!");
+    message = (char*)malloc(n * sizeof(char));
+    message = "Hello world!";
+
+    return n;
+}
+
 int32_t createServer(const char* port)
 {
     struct addrinfo hints;
@@ -17,10 +26,10 @@ int32_t createServer(const char* port)
 
     char* channel_path;
     char* message;
-    uint8_t parameters[3];
+    uint8_t parameters[4];
 
     tlm_sv_t new_tlm_sv;
-    new_tlm_sv.client_list = NULL;
+    //new_tlm_sv.client_list = NULL;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_canonname = NULL;
@@ -52,7 +61,7 @@ int32_t createServer(const char* port)
     }
 
     if (rp == NULL)
-        errMsg("Could not bind socket to any address");
+        errMsg("Could not bind socket to any address.");
 
     if (listen(sfd, BACKLOG) == -1)
         errExit("listen");
@@ -73,51 +82,71 @@ int32_t createServer(const char* port)
         // find out request type 
         if (readn(cfd, &parameters[0], 1) < 0) {
             close(cfd);
-            errMsg("Failed to read request type");
+            errMsg("Failed to read request type.");
             continue;
         }
         printf("received request type: %u\n", parameters[0]);
-
-        switch (parameters[0]) {
-            case READ_OPERATION:
-            case WRITE_OPERATION:
-            default:
-                errMsg("Unknown operation type");
-        }
-
+        
         if (readn(cfd, &parameters[1], 1) < 0) {
             close(cfd);
-            errMsg("Failed to read size of channel path");
+            errMsg("Failed to read size of channel path.");
             continue;
         }
-        printf("received channel length %u\n", parameters[1]);
-
-        if (readn(cfd, &parameters[2], 1) < 0) {
-            close(cfd);
-            errMsg("Failed to read size of message");
-            continue;
-        }
-        printf("received message length %u\n", parameters[2]);
 
         channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
         if (readn(cfd, channel_path, parameters[1]) < 0) {
             close(cfd);
-            errMsg("Failed to read channel name");
+            errMsg("Failed to read channel path.");
             free(channel_path);
             continue;
         }
+        
+        switch (parameters[0]) {
+            case READ_OPERATION:
+                if (readn(cfd, &parameters[2], 2) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read size of message.");
+                    continue;
+                }
 
-        printf("received channel path: %s\n", channel_path);
+                printf("channel length is %d\n", parameters[2]);
 
-        message = (char*)malloc((parameters[2] + 1) * sizeof(char));
-        if (readn(cfd, message, parameters[2]) < 0) {
-            close(cfd);
-            errMsg("Failed to read message");
-            free(message);
-            continue;
+                message = (char*)malloc((parameters[2] + 1) * sizeof(char));
+                if (readn(cfd, message, parameters[2]) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read message.");
+                    free(message);
+                    continue;
+                }
+
+                printf("received message: %s\n", message);
+
+                if (writen(cfd, message, parameters[0]) < 0) {
+                    close(cfd);
+                    errMsg("Failed to send acknowledgment.");
+                    continue;
+                }
+                break;
+            case WRITE_OPERATION:
+                int32_t message_len = getMessage(channel_path, message);
+
+                if (writen(cfd, &message_len, 2) < 0) {
+                    close(cfd);
+                    errMsg("Failed to send message length to client. Will abort.");
+                    continue;
+                }
+
+                if (writen(cfd, message, message_len) < 0) {
+                    close(cfd);
+                    errMsg("Failed to send message to client.");
+                    continue;
+                }
+
+                break;
+            default:
+                errMsg("Unknown operation type.");
         }
 
-        printf("received message: %s\n", message);
         
         if (close(cfd) == -1)
             errMsg("close");
@@ -127,21 +156,9 @@ int32_t createServer(const char* port)
     free(message);
 }
 
-static int addToList(cl_list* list, uint32_t client)
+int closeServer(tlm_sv_t sv)
 {
-}
-
-static int freeList(cl_list* list)
-{
-    free(list->cfds);
-    list->count = 0;
-    list->size = 0;
-}
-
-int closeServer(tlm_sv_t sv_token)
-{
-   close(sv_token.sfd);
-   freeList(sv_token.client_list);
+   close(sv.sfd);
 }
 
 int main()

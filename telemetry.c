@@ -68,7 +68,7 @@ static bool isValidDomain(const char* domain)
     return true;
 }
 
-static bool isValidIP(const char* ip) // checks if it's a valid IP(v4 or v6), domain names are also accepted
+static bool isValidHost(const char* ip) // checks if it's a valid IP(v4 or v6), domain names are also accepted
 {
     struct in_addr ipv4_addr;
     struct in6_addr ipv6_addr;
@@ -124,9 +124,10 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
     new_tlm.type = type;
     uint32_t port_value;
 
-    if (!isValidIP(ip)) {
-        errMsg("Invalid IP. Expected input is an IPv4 address of the form:'n.n.n.n' where n is a 8 bit unsigned value OR\n \ 
+    if (!isValidHost(ip)) {
+        errMsg("Invalid host. Expected input is an IPv4 address of the form:'n.n.n.n' where n is a 8 bit unsigned value OR\n \ 
                                     an IPv6 address of the form:'hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh' where h is a hexadecimal value OR\n \
+                                    a host OR\n \
                                     a domain name."); 
         return new_tlm;
     }
@@ -225,9 +226,9 @@ int tlm_post(tlm_t token, const char* message)
         return -1;
     }
 
-    uint8_t msg_len = message_length;
+    uint16_t msg_len = message_length;
     uint8_t chn_len = channel_length;
-    uint8_t opcode = 3;
+    uint8_t opcode = 0;
 
     // send information to server
     if (writen(token.sfd, &opcode, 1) < 0) {
@@ -238,7 +239,7 @@ int tlm_post(tlm_t token, const char* message)
         return -1;
     }
 
-    if (writen(token.sfd, &msg_len, 1) < 0) {
+    if (writen(token.sfd, &msg_len, 2) < 0) {
         return -1;
     }
 
