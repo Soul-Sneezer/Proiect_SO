@@ -135,6 +135,7 @@ void *thread_notify(void *p) {
   return NULL;
 }
 
+// Open tlm connection
 tlm_t tlm_open(int type, const char *channel_name) {
   if (type < TLM_PUBLISHER || type > TLM_BOTH) {
     fprintf(stderr, "tlm_open: Unknown channel type\n");
@@ -165,6 +166,7 @@ tlm_t tlm_open(int type, const char *channel_name) {
   return token;
 }
 
+// Post message by tlm connection with token
 int tlm_post(tlm_t token, const char *message) {
 
   // Check if message size is within parameters
@@ -209,6 +211,8 @@ int tlm_post(tlm_t token, const char *message) {
 
   // Convert timestamp to GMT time and write message
   struct tm gmt_time = get_gmt_time();
+
+  // Print message in parent channel
   fprintf(log_file, "[token=%u at %04d-%02d-%02d %02d:%02d:%02d GMT] %s\n",
           token, gmt_time.tm_year + 1900, gmt_time.tm_mon + 1, gmt_time.tm_mday,
           gmt_time.tm_hour, gmt_time.tm_min, gmt_time.tm_sec, message);
@@ -216,6 +220,42 @@ int tlm_post(tlm_t token, const char *message) {
   char *long_message = malloc(REAL_MAX_MESSAGE_SZ * sizeof(*long_message) + 1);
   rewind(log_file);
   fscanf(log_file, "%[^\n]", long_message);
+
+  // Print message in children chennels
+  node_list *head = malloc(sizeof(*head));
+  head->path = NULL;
+  head->next = NULL;
+  get_dir(user->channel_name, &head);
+  node_list *current = head;
+
+  while (1) {
+    if (strcmp(current->path, user->channel_name) == 0) {
+      break;
+    }
+
+    printf("Opening %s\n", current->path);
+    int channel_log_fd = open_log(current->path);
+    if (channel_log_fd < 0) {
+      fprintf(stderr, "tlm_post: Error trying to get log file descriptor\n");
+    }
+
+    FILE *channel_log = fdopen(channel_log_fd, "w+");
+    if (!channel_log) {
+      perror("fdopen");
+      return errno;
+    }
+
+    fprintf(channel_log, "[token=%u at %04d-%02d-%02d %02d:%02d:%02d GMT] %s\n",
+            token, gmt_time.tm_year + 1900, gmt_time.tm_mon + 1,
+            gmt_time.tm_mday, gmt_time.tm_hour, gmt_time.tm_min,
+            gmt_time.tm_sec, message);
+
+    fclose(channel_log);
+    close(channel_log_fd);
+
+    current = current->next;
+  }
+  delete_list(head);
 
   // Notify users who registered callbacks, in separate threads in case some
   // are faulty
@@ -242,6 +282,7 @@ int tlm_post(tlm_t token, const char *message) {
   return SUCCESS;
 }
 
+// Read mesasge from tlm connection with token
 const char *tlm_read(tlm_t token, unsigned long long *message_id) {
   // Get user from token
   user_t *user = &users.buf[token];
@@ -293,6 +334,7 @@ const char *tlm_read(tlm_t token, unsigned long long *message_id) {
   return (const char *)message;
 }
 
+// Close tlm connection
 int tlm_close(tlm_t token) {
 
   // Mark as closed and push to empty (available) tlm stack
