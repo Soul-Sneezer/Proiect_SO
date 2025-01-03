@@ -12,7 +12,7 @@
 #define REAL_MAX_MESSAGE_SZ MAX_MESSAGE_SZ + 256
 
 // Function to parse log string and extract user_id and timestamp as time_t
-static int parse_log_string(const char *log_string, tid_t *token,
+static int parse_log_string(const char *log_string, tokid_t *token,
                             time_t *timestamp) {
   struct tm tm_time = {0};
   int result =
@@ -74,7 +74,7 @@ struct tm get_gmt_time() {
 typedef struct user_t {
   uid_t user_id;
   int type;
-  void (*message_callback)(tid_t token, const char *message);
+  void (*message_callback)(tokid_t token, const char *message);
   char channel_name[MAX_CHANNEL_NAME];
 } user_t;
 
@@ -84,16 +84,18 @@ typedef struct array_t {
 } array_t;
 
 typedef struct stack_t {
-  tid_t *buf;
+  tokid_t *buf;
   size_t size;
 } stack_t;
 
-static inline void push(stack_t *stack, tid_t value) {
+static inline void push(stack_t *stack, tokid_t value) {
   stack->buf = realloc(stack->buf, (stack->size + 1) * sizeof(*stack->buf));
   stack->buf[stack->size++] = value;
 }
 
-static inline tid_t top(stack_t *stack) { return stack->buf[stack->size - 1]; }
+static inline tokid_t top(stack_t *stack) {
+  return stack->buf[stack->size - 1];
+}
 
 static inline void pop(stack_t *stack) { stack->size--; }
 
@@ -122,8 +124,8 @@ static array_t users;
 static stack_t empty;
 
 typedef struct notify_args {
-  tid_t token;
-  tid_t notifiee;
+  tokid_t token;
+  tokid_t notifiee;
   const char *message;
 } notify_args;
 
@@ -136,7 +138,7 @@ void *thread_notify(void *p) {
 }
 
 // Open channel connection
-tid_t channel_open(int type, const char *channel_name) {
+tokid_t channel_open(int type, const char *channel_name) {
   if (type < CHANNEL_PUBLISHER || type > CHANNEL_BOTH) {
     fprintf(stderr, "channel_open: Unknown channel type\n");
     return UNKNOWN_CHANNEL_TYPE;
@@ -152,7 +154,7 @@ tid_t channel_open(int type, const char *channel_name) {
 
   user_t user = create_user(type, channel_name);
 
-  tid_t token = users.size;
+  tokid_t token = users.size;
   if (empty.size > 0) {
     token = top(&empty);
     pop(&empty);
@@ -168,7 +170,7 @@ tid_t channel_open(int type, const char *channel_name) {
 }
 
 // Post message by channel connection with token
-int channel_post(tid_t token, const char *message) {
+int channel_post(tokid_t token, const char *message) {
 
   // Check if message size is within parameters
   if (strlen(message) >= MAX_MESSAGE_SZ) {
@@ -265,7 +267,7 @@ int channel_post(tid_t token, const char *message) {
   for (size_t i = 0; i < users.size; i++) {
     if (users.buf[i].message_callback != NULL &&
         strstr(users.buf[i].channel_name, user->channel_name)) {
-      notify_args args = {token, (tid_t)i, long_message};
+      notify_args args = {token, (tokid_t)i, long_message};
       pthread_t thread;
 
       if (pthread_create(&thread, NULL, thread_notify, &args) != 0) {
@@ -286,7 +288,7 @@ int channel_post(tid_t token, const char *message) {
 }
 
 // Read mesasge from channel connection with token
-const char *channel_read(tid_t token, unsigned long long *message_id) {
+const char *channel_read(tokid_t token, unsigned long long *message_id) {
   // Get user from token
   user_t *user = &users.buf[token];
   if (user->type == CHANNEL_PUBLISHER) {
@@ -322,7 +324,7 @@ const char *channel_read(tid_t token, unsigned long long *message_id) {
 
   // Get timestamp and uid from message
   time_t timestamp;
-  tid_t message_token;
+  tokid_t message_token;
   int ret = parse_log_string(message, &message_token, &timestamp);
   if (ret < 0) {
     fprintf(stderr, "channel_read: Failed to parse log string\n");
@@ -338,7 +340,7 @@ const char *channel_read(tid_t token, unsigned long long *message_id) {
 }
 
 // Close channel connection
-int channel_close(tid_t token) {
+int channel_close(tokid_t token) {
 
   // Mark as closed and push to empty (available) channel stack
   users.buf[token].type = CHANNEL_CLOSED;
@@ -347,8 +349,8 @@ int channel_close(tid_t token) {
   return SUCCESS;
 }
 
-int channel_callback(tid_t token,
-                     void (*message_callback)(tid_t token,
+int channel_callback(tokid_t token,
+                     void (*message_callback)(tokid_t token,
                                               const char *message)) {
   users.buf[token].message_callback = message_callback;
   return SUCCESS;

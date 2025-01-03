@@ -3,11 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void callback1(tid_t token, const char *message) {
+void callback1(tokid_t token, const char *message) {
   printf("callback1(): [MESSAGE from %d] %s\n", token, message);
 }
 
-void callback2(tid_t token, const char *message) {
+void callback2(tokid_t token, const char *message) {
   printf("callback2(): [MESSAGE from %d] %s\n", token, message);
 }
 
@@ -25,15 +25,15 @@ int main() {
     return -1;
   }
 
-  tid_t tid_child_s = channel_open(CHANNEL_SUBSCRIBER, "channel_a/child");
+  tokid_t tid_child_s = channel_open(CHANNEL_SUBSCRIBER, "channel_a/child");
   printf("Created channel 1\n");
-  tid_t tid_p_a = channel_open(CHANNEL_PUBLISHER, "channel_a");
+  tokid_t tid_p_a = channel_open(CHANNEL_PUBLISHER, "channel_a");
   printf("Created channel 2\n");
-  tid_t tid_s_a = channel_open(CHANNEL_SUBSCRIBER, "channel_a");
+  tokid_t tid_s_a = channel_open(CHANNEL_SUBSCRIBER, "channel_a");
   printf("Created channel 3\n");
-  tid_t tid_b_b = channel_open(CHANNEL_BOTH, "channel_b");
+  tokid_t tid_b_b = channel_open(CHANNEL_BOTH, "channel_b");
   printf("Created channel 4\n");
-  tid_t tid_s_b = channel_open(CHANNEL_SUBSCRIBER, "channel_b");
+  tokid_t tid_s_b = channel_open(CHANNEL_SUBSCRIBER, "channel_b");
   printf("Created channel 5\n");
   channel_callback(tid_s_a, callback1);
   printf("Registered callback 1\n");

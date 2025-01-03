@@ -18,18 +18,18 @@
 #define ERR_CHANNEL_CLOSED -5
 #define FAILED_CHANNEL_OPEN -6
 
-typedef int tid_t;
+typedef int tokid_t;
 
-tid_t channel_open(int type, const char *channel_name);
+tokid_t channel_open(int type, const char *channel_name);
 
-int channel_callback(tid_t token,
-                     void (*message_callback)(tid_t token,
+int channel_callback(tokid_t token,
+                     void (*message_callback)(tokid_t token,
                                               const char *message));
 
-const char *channel_read(tid_t token, unsigned long long *message_id);
+const char *channel_read(tokid_t token, unsigned long long *message_id);
 
-int channel_post(tid_t token, const char *message);
+int channel_post(tokid_t token, const char *message);
 
-int channel_close(tid_t token);
+int channel_close(tokid_t token);
 
 #endif
