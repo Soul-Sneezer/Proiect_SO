@@ -1,3 +1,5 @@
+// there error functions are from the book 'The Linux Programming Interface' by Michael Kerrisk
+
 #ifndef ERROR_FUNCTIONS_H
 #define ERROR_FUNCTIONS_H
 
