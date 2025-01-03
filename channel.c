@@ -12,7 +12,7 @@
 #define REAL_MAX_MESSAGE_SZ MAX_MESSAGE_SZ + 256
 
 // Function to parse log string and extract user_id and timestamp as time_t
-static int parse_log_string(const char *log_string, tlm_t *token,
+static int parse_log_string(const char *log_string, tid_t *token,
                             time_t *timestamp) {
   struct tm tm_time = {0};
   int result =
@@ -74,7 +74,7 @@ struct tm get_gmt_time() {
 typedef struct user_t {
   uid_t user_id;
   int type;
-  void (*message_callback)(tlm_t token, const char *message);
+  void (*message_callback)(tid_t token, const char *message);
   char channel_name[MAX_CHANNEL_NAME];
 } user_t;
 
@@ -84,16 +84,16 @@ typedef struct array_t {
 } array_t;
 
 typedef struct stack_t {
-  tlm_t *buf;
+  tid_t *buf;
   size_t size;
 } stack_t;
 
-static inline void push(stack_t *stack, tlm_t value) {
+static inline void push(stack_t *stack, tid_t value) {
   stack->buf = realloc(stack->buf, (stack->size + 1) * sizeof(*stack->buf));
   stack->buf[stack->size++] = value;
 }
 
-static inline tlm_t top(stack_t *stack) { return stack->buf[stack->size - 1]; }
+static inline tid_t top(stack_t *stack) { return stack->buf[stack->size - 1]; }
 
 static inline void pop(stack_t *stack) { stack->size--; }
 
@@ -122,8 +122,8 @@ static array_t users;
 static stack_t empty;
 
 typedef struct notify_args {
-  tlm_t token;
-  tlm_t notifiee;
+  tid_t token;
+  tid_t notifiee;
   const char *message;
 } notify_args;
 
@@ -135,23 +135,24 @@ void *thread_notify(void *p) {
   return NULL;
 }
 
-// Open tlm connection
-tlm_t tlm_open(int type, const char *channel_name) {
-  if (type < TLM_PUBLISHER || type > TLM_BOTH) {
-    fprintf(stderr, "tlm_open: Unknown channel type\n");
+// Open channel connection
+tid_t channel_open(int type, const char *channel_name) {
+  if (type < CHANNEL_PUBLISHER || type > CHANNEL_BOTH) {
+    fprintf(stderr, "channel_open: Unknown channel type\n");
     return UNKNOWN_CHANNEL_TYPE;
   }
 
   int log_fd = open_log(channel_name);
   if (log_fd < 0) {
-    fprintf(stderr, "tlm_open: Unknown channel name; channel does not exist\n");
-    return FAILED_TLM_OPEN;
+    fprintf(stderr,
+            "channel_open: Unknown channel name; channel does not exist\n");
+    return FAILED_CHANNEL_OPEN;
   }
   close(log_fd);
 
   user_t user = create_user(type, channel_name);
 
-  tlm_t token = users.size;
+  tid_t token = users.size;
   if (empty.size > 0) {
     token = top(&empty);
     pop(&empty);
@@ -166,33 +167,34 @@ tlm_t tlm_open(int type, const char *channel_name) {
   return token;
 }
 
-// Post message by tlm connection with token
-int tlm_post(tlm_t token, const char *message) {
+// Post message by channel connection with token
+int channel_post(tid_t token, const char *message) {
 
   // Check if message size is within parameters
   if (strlen(message) >= MAX_MESSAGE_SZ) {
     fprintf(stderr,
-            "tlm_post: Message too large. Maximum message size is: %d\n",
+            "channel_post: Message too large. Maximum message size is: %d\n",
             MAX_MESSAGE_SZ);
   }
 
   // Get user from token
   user_t *user = &users.buf[token];
-  if (user->type == TLM_SUBSCRIBER) {
-    fprintf(stderr, "tlm_post: Subscribers cannot post messages to channels\n");
+  if (user->type == CHANNEL_SUBSCRIBER) {
+    fprintf(stderr,
+            "channel_post: Subscribers cannot post messages to channels\n");
     return SUBSCRIBERS_CANNOT_POST;
   }
 
   // Check if channel is closed
-  if (user->type == TLM_CLOSED) {
-    fprintf(stderr, "tlm_post: Tlm channel marked as closed\n");
-    return CHANNEL_CLOSED;
+  if (user->type == CHANNEL_CLOSED) {
+    fprintf(stderr, "channel_post: Tlm channel marked as closed\n");
+    return ERR_CHANNEL_CLOSED;
   }
 
   // Get log file descriptor
   int log_fd = open_log(user->channel_name);
   if (log_fd < 0) {
-    fprintf(stderr, "tlm_post: Error trying to get log file descriptor\n");
+    fprintf(stderr, "channel_post: Error trying to get log file descriptor\n");
   }
 
   // Open log file with file descriptor
@@ -236,7 +238,8 @@ int tlm_post(tlm_t token, const char *message) {
     printf("Opening %s\n", current->path);
     int channel_log_fd = open_log(current->path);
     if (channel_log_fd < 0) {
-      fprintf(stderr, "tlm_post: Error trying to get log file descriptor\n");
+      fprintf(stderr,
+              "channel_post: Error trying to get log file descriptor\n");
     }
 
     FILE *channel_log = fdopen(channel_log_fd, "w+");
@@ -262,7 +265,7 @@ int tlm_post(tlm_t token, const char *message) {
   for (size_t i = 0; i < users.size; i++) {
     if (users.buf[i].message_callback != NULL &&
         strstr(users.buf[i].channel_name, user->channel_name)) {
-      notify_args args = {token, (tlm_t)i, long_message};
+      notify_args args = {token, (tid_t)i, long_message};
       pthread_t thread;
 
       if (pthread_create(&thread, NULL, thread_notify, &args) != 0) {
@@ -282,33 +285,33 @@ int tlm_post(tlm_t token, const char *message) {
   return SUCCESS;
 }
 
-// Read mesasge from tlm connection with token
-const char *tlm_read(tlm_t token, unsigned long long *message_id) {
+// Read mesasge from channel connection with token
+const char *channel_read(tid_t token, unsigned long long *message_id) {
   // Get user from token
   user_t *user = &users.buf[token];
-  if (user->type == TLM_PUBLISHER) {
+  if (user->type == CHANNEL_PUBLISHER) {
     fprintf(stderr,
-            "tlm_read: Publishers cannot read messages from channels\n");
+            "channel_read: Publishers cannot read messages from channels\n");
     return PUBLISHERS_CANNOT_READ;
   }
 
   // Check if channel is closed
-  if (user->type == TLM_CLOSED) {
-    fprintf(stderr, "tlm_read: Tlm channel marked as closed\n");
+  if (user->type == CHANNEL_CLOSED) {
+    fprintf(stderr, "channel_read: Tlm channel marked as closed\n");
     return NULL;
   }
 
   // Get log file descriptor
   int log_fd = open_log(user->channel_name);
   if (log_fd < 0) {
-    fprintf(stderr, "tlm_read: Error trying to get log file descriptor\n");
+    fprintf(stderr, "channel_read: Error trying to get log file descriptor\n");
     return NULL;
   }
 
   // Open log file with file descriptor
   FILE *log_file = fdopen(log_fd, "r");
   if (!log_file) {
-    perror("tlm_open: fdopen: ");
+    perror("channel_open: fdopen: ");
     return NULL;
   }
 
@@ -319,10 +322,10 @@ const char *tlm_read(tlm_t token, unsigned long long *message_id) {
 
   // Get timestamp and uid from message
   time_t timestamp;
-  tlm_t message_token;
+  tid_t message_token;
   int ret = parse_log_string(message, &message_token, &timestamp);
   if (ret < 0) {
-    fprintf(stderr, "tlm_read: Failed to parse log string\n");
+    fprintf(stderr, "channel_read: Failed to parse log string\n");
     return NULL;
   }
 
@@ -334,18 +337,19 @@ const char *tlm_read(tlm_t token, unsigned long long *message_id) {
   return (const char *)message;
 }
 
-// Close tlm connection
-int tlm_close(tlm_t token) {
+// Close channel connection
+int channel_close(tid_t token) {
 
-  // Mark as closed and push to empty (available) tlm stack
-  users.buf[token].type = TLM_CLOSED;
+  // Mark as closed and push to empty (available) channel stack
+  users.buf[token].type = CHANNEL_CLOSED;
   users.buf[token].message_callback = NULL;
   push(&empty, token);
   return SUCCESS;
 }
 
-int tlm_callback(tlm_t token,
-                 void (*message_callback)(tlm_t token, const char *message)) {
+int channel_callback(tid_t token,
+                     void (*message_callback)(tid_t token,
+                                              const char *message)) {
   users.buf[token].message_callback = message_callback;
   return SUCCESS;
 }

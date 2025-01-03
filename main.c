@@ -3,11 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void callback1(tlm_t token, const char *message) {
+void callback1(tid_t token, const char *message) {
   printf("callback1(): [MESSAGE from %d] %s\n", token, message);
 }
 
-void callback2(tlm_t token, const char *message) {
+void callback2(tid_t token, const char *message) {
   printf("callback2(): [MESSAGE from %d] %s\n", token, message);
 }
 
@@ -25,31 +25,31 @@ int main() {
     return -1;
   }
 
-  tlm_t tid_child_s = tlm_open(TLM_SUBSCRIBER, "channel_a/child");
+  tid_t tid_child_s = channel_open(CHANNEL_SUBSCRIBER, "channel_a/child");
   printf("Created channel 1\n");
-  tlm_t tid_p_a = tlm_open(TLM_PUBLISHER, "channel_a");
+  tid_t tid_p_a = channel_open(CHANNEL_PUBLISHER, "channel_a");
   printf("Created channel 2\n");
-  tlm_t tid_s_a = tlm_open(TLM_SUBSCRIBER, "channel_a");
+  tid_t tid_s_a = channel_open(CHANNEL_SUBSCRIBER, "channel_a");
   printf("Created channel 3\n");
-  tlm_t tid_b_b = tlm_open(TLM_BOTH, "channel_b");
+  tid_t tid_b_b = channel_open(CHANNEL_BOTH, "channel_b");
   printf("Created channel 4\n");
-  tlm_t tid_s_b = tlm_open(TLM_SUBSCRIBER, "channel_b");
+  tid_t tid_s_b = channel_open(CHANNEL_SUBSCRIBER, "channel_b");
   printf("Created channel 5\n");
-  tlm_callback(tid_s_a, callback1);
+  channel_callback(tid_s_a, callback1);
   printf("Registered callback 1\n");
-  tlm_callback(tid_child_s, callback2);
+  channel_callback(tid_child_s, callback2);
   printf("Registered callback 2\n");
-  tlm_post(tid_p_a, "Acesta este un mesaj!");
+  channel_post(tid_p_a, "Acesta este un mesaj!");
   printf("Posted message 1\n");
-  tlm_post(tid_b_b, "Acesta este un mesaj in channel B!");
+  channel_post(tid_b_b, "Acesta este un mesaj in channel B!");
   printf("Posted message 2\n");
   unsigned long long mid;
   const char *message;
-  message = tlm_read(tid_b_b, &mid);
+  message = channel_read(tid_b_b, &mid);
   printf("Mesaj %llu: %s\n", mid, message);
   free((void *)message);
-  tlm_post(tid_b_b, "Acesta este alt mesaj in channel B!");
-  message = tlm_read(tid_s_b, &mid);
+  channel_post(tid_b_b, "Acesta este alt mesaj in channel B!");
+  message = channel_read(tid_s_b, &mid);
   printf("Mesaj %llu: %s\n", mid, message);
   free((void *)message);
 
