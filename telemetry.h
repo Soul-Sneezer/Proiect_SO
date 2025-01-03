@@ -21,6 +21,8 @@ typedef struct {
     int sfd;
     time_t timestamp;
     uint32_t user;
+
+    uint8_t channel_len;
     char* channel_path;
 } tlm_t; 
 

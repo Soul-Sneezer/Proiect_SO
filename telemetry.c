@@ -146,7 +146,13 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
     new_tlm.channel_path = (char*)malloc((n + 1) * sizeof(char));
     strncpy(new_tlm.channel_path, channel_name, n);
     new_tlm.channel_path[n] = '\0';
-    
+
+    if (n > MAX_PATH_LENGTH) {
+        errMsg("Path name is too long.");
+        return new_tlm;
+    }
+    new_tlm.channel_len = n; 
+
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int sfd, s; 
@@ -201,6 +207,49 @@ const char* tlm_read(tlm_t token, uint32_t* message_id)
         errMsg("Token is closed.");
         return NULL;
     }
+
+    uint8_t opcode = 1;
+    uint16_t message_length = 0;
+    uint8_t byte1, byte2;
+    char* message;
+    if (writen(token.sfd, &opcode, 1) < 0) {
+        errMsg("Could not pass read request to server.");
+        return NULL; 
+    }
+
+    if (writen(token.sfd, &token.channel_len, 1) < 0) {
+        errMsg("Could not pass channel length to server.");
+        return NULL;
+    }
+
+    if (writen(token.sfd, token.channel_path, token.channel_len) < 0) {
+        errMsg("Could not pass channel path to server.");
+        return NULL;
+    }
+    
+    if (readn(token.sfd, &byte1, 1) < 0) {
+        errMsg("Server did not respond.");
+        return NULL;
+    }
+
+    if (readn(token.sfd, &byte2, 1) < 0) {
+        errMsg("Server did not respond.") ;
+        return NULL;
+    }
+
+    message_length += byte1 << 8;
+    message_length += byte2;
+
+    printf("message_length is: %d\n", message_length);
+    message = (char*)malloc((message_length + 1) * sizeof(char));
+    message[message_length] = '\0';
+
+    if (readn(token.sfd, message, message_length) < 0) {
+        return NULL;
+    }
+
+    printf("received message from server: %s\n", message);
+   return message; 
 }
 
 int tlm_post(tlm_t token, const char* message)
@@ -216,18 +265,14 @@ int tlm_post(tlm_t token, const char* message)
     }
 
     size_t message_length = strlen(message);
-    size_t channel_length = strlen(token.channel_path);
     
     if (message_length >= MAX_MESSAGE_LENGTH) {
         return -1;
     }
 
-    if (channel_length >= MAX_PATH_LENGTH) {
-        return -1;
-    }
-
     uint16_t msg_len = message_length;
-    uint8_t chn_len = channel_length;
+    uint8_t byte1 = message_length >> 8;
+    uint8_t byte2 = message_length & 0xFF;
     uint8_t opcode = 0;
 
     // send information to server
@@ -235,15 +280,19 @@ int tlm_post(tlm_t token, const char* message)
         return -1;
     }
     
-    if (writen(token.sfd, &chn_len, 1) < 0) {
+    if (writen(token.sfd, &token.channel_len, 1) < 0) {
+        return -1;
+    }
+    
+    if (writen(token.sfd, token.channel_path, token.channel_len) < 0) {
         return -1;
     }
 
-    if (writen(token.sfd, &msg_len, 2) < 0) {
+    if (writen(token.sfd, &byte1, 1) < 0) {
         return -1;
     }
 
-    if (writen(token.sfd, token.channel_path, channel_length) < 0) {
+    if (writen(token.sfd, &byte2, 1) < 0) {
         return -1;
     }
 
@@ -251,6 +300,14 @@ int tlm_post(tlm_t token, const char* message)
         return -1;
     }
 
+    char* message_from_server = (char*)malloc((message_length + 1) * sizeof(char));
+    if (readn(token.sfd, message_from_server, message_length) < 0) {
+        free(message_from_server);
+        return -1;
+    }
+    printf("Server received the message\n");
+
+    free(message_from_server);
     return 0;
 }
 
@@ -276,7 +333,9 @@ int main()
     tlm_t tlm1 = tlm_open(TLM_BOTH, "/home/user/channel/a", "localhost", DAEMON_DEFAULT_PORT);
     //tlm_t tlm2 = tlm_open(1, "/home/user/channel/a", "message.competitivesubmarines.com", DAEMON_DEFAULT_PORT);
     //tlm_post(tlm1, "Hello World");
-    tlm_post(tlm1, "Hello World");
+    tlm_read(tlm1, NULL);
+    //tlm_post(tlm1, "Hello World");
+    //tlm_read(tlm1, NULL);
     tlm_close(tlm1);
     tlm_post(tlm1, "Hello World");
 }

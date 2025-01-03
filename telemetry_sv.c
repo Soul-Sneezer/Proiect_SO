@@ -7,13 +7,13 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-size_t getMessage(const char* path, char* message) // barebones for now
+size_t getMessage(const char* path, char** message) // barebones for now
 {
-    size_t n = strlen("Hello world!");
-    message = (char*)malloc(n * sizeof(char));
-    message = "Hello world!";
+    *message = (char*)malloc(13 * sizeof(char));
+    strncpy(*message, "Hello World!", 12);
+    (*message)[12] = '\0';
 
-    return n;
+    return 12;
 }
 
 int32_t createServer(const char* port)
@@ -23,6 +23,8 @@ int32_t createServer(const char* port)
     socklen_t addrlen;
     struct sockaddr_storage claddr;
     int cfd, sfd, optval, s;
+    size_t message_len;
+    uint8_t byte1, byte2;
 
     char* channel_path;
     char* message;
@@ -93,26 +95,37 @@ int32_t createServer(const char* port)
             continue;
         }
 
+        printf("channel path length is %d\n", parameters[1]);
+
         channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
+        channel_path[parameters[1]] = '\0';
+
         if (readn(cfd, channel_path, parameters[1]) < 0) {
             close(cfd);
             errMsg("Failed to read channel path.");
             free(channel_path);
             continue;
         }
-        
+        printf("channel path is %s\n", channel_path);
+
         switch (parameters[0]) {
             case READ_OPERATION:
-                if (readn(cfd, &parameters[2], 2) < 0) {
+                if (readn(cfd, &parameters[2], 1) < 0) {
                     close(cfd);
                     errMsg("Failed to read size of message.");
                     continue;
                 }
 
-                printf("channel length is %d\n", parameters[2]);
+                if (readn(cfd, &parameters[3], 1) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read size of message.");
+                    continue;
+                }
+                
+                printf("message length is %d %d\n", parameters[2] , parameters[3]);
 
-                message = (char*)malloc((parameters[2] + 1) * sizeof(char));
-                if (readn(cfd, message, parameters[2]) < 0) {
+                message = (char*)malloc(((parameters[2] << 8) + parameters[3] + 1) * sizeof(char));
+                if (readn(cfd, message, (parameters[2] << 8) + parameters[3]) < 0) {
                     close(cfd);
                     errMsg("Failed to read message.");
                     free(message);
@@ -120,31 +133,42 @@ int32_t createServer(const char* port)
                 }
 
                 printf("received message: %s\n", message);
-
-                if (writen(cfd, message, parameters[0]) < 0) {
+                if (writen(cfd, message, (parameters[2] << 8) + parameters[3]) < 0) {
                     close(cfd);
                     errMsg("Failed to send acknowledgment.");
                     continue;
                 }
-                break;
+                
+                continue;
             case WRITE_OPERATION:
-                int32_t message_len = getMessage(channel_path, message);
+                message_len = getMessage(channel_path, &message);
+                byte1 = message_len >> 8;
+                byte2 = message_len & 0xFF;
+                //printf("%s", message);
 
-                if (writen(cfd, &message_len, 2) < 0) {
+                printf("Writing to client!\n");
+                if (writen(cfd, &byte1, 1) < 0) {
                     close(cfd);
                     errMsg("Failed to send message length to client. Will abort.");
                     continue;
                 }
 
+                if (writen(cfd, &byte2, 1) < 0) {
+                    close(cfd);
+                    errMsg("Failed to send message length to client. Will abort.");
+                    continue;
+                }
+               
                 if (writen(cfd, message, message_len) < 0) {
                     close(cfd);
                     errMsg("Failed to send message to client.");
                     continue;
                 }
-
-                break;
+                
+                continue;
             default:
                 errMsg("Unknown operation type.");
+                continue;
         }
 
         
