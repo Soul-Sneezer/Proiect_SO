@@ -12,12 +12,14 @@
 #include <signal.h>
 #include <dlfcn.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 typedef enum {
     LOG_LEVEL_ERROR = 0,
     LOG_LEVEL_INFO,
     LOG_LEVEL_DEBUG
 } log_level_t;
+
 typedef struct {
     log_level_t log_level;
     const char *working_directory;
@@ -73,8 +75,10 @@ static inline void log_message(log_level_t level, const char *format, ...) {
 
 static volatile int daemon_running = 1;
 static volatile int reconfiguration_requested = 0;
+
 typedef int (*sd_notify_func_t)(int unset_environment, const char *state);
 static sd_notify_func_t sd_notify_ptr = NULL;
+
 static void initialize_sd_notify(void) {
     if (getenv("NOTIFY_SOCKET") == NULL) {
         return;
@@ -153,6 +157,37 @@ static inline int initialize_daemon(const daemon_config_t *config) {
     my_sd_notify(0, "READY=1");
     log_info("Daemon initialization complete");
 
+    return 0;
+}
+
+static inline int parse_config_file(const char *filename, 
+                                  void (*handler)(const char *key, 
+                                                const char *value, 
+                                                void *user_data),
+                                  void *user_data) {
+    FILE *f = fopen(filename, "r");
+    if (!f) return -1;
+
+    char line[1024];
+    while (fgets(line, sizeof(line), f)) {
+        char *key = strtok(line, "=");
+        char *value = strtok(NULL, "\n");
+        
+        if (key && value) {
+            while (isspace(*key)) key++;
+            while (isspace(*value)) value++;
+            
+            char *end = key + strlen(key) - 1;
+            while (end > key && isspace(*end)) *end-- = '\0';
+            
+            end = value + strlen(value) - 1;
+            while (end > value && isspace(*end)) *end-- = '\0';
+
+            handler(key, value, user_data);
+        }
+    }
+
+    fclose(f);
     return 0;
 }
 
