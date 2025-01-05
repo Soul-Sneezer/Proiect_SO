@@ -10,3 +10,6 @@ Canalele de distributie pot fi organizate ierarhic, in asa fel incat un mesaj tr
 * **Petre Robert Cristian** – Comunicare librarie-daemon
 * **Popescu Tiberiu** – Comunicare user-canale
 * **Voicu Ioan Vladut** – Creare daemon
+
+# Daemonizare
+Daemonul respecta modelul de "new-style daemons". Daemonizarea este realizata printr-o librarie C header-only, aceasta permitand daemonizarea in asa fel incat sa se creeze un PID file, sa ofere optiunea de logging (expunand o interfata dedicata) si sa urmeze desigur pasii necesari daemonizarii conforme.
