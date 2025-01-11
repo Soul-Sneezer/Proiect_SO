@@ -10,3 +10,19 @@ Canalele de distributie pot fi organizate ierarhic, in asa fel incat un mesaj tr
 * **Petre Robert Cristian** – Comunicare librarie-daemon
 * **Popescu Tiberiu** – Comunicare user-canale
 * **Voicu Ioan Vladut** – Creare daemon
+
+# Reprezentare canale
+
+## Libraria dir.h
+### Crearea si stergerea directoarelor
+- **create_dir**: Permite crearea de directoare multiple(separate prin '/') si configurarea initiala a fisierelor de log(log.txt) in fiecare director nou creat.
+- **remove_dir**: Permite stergerea directoarelor si a intregului continut din ele si din adancimea lor.
+
+### Gestionarea fisierelor de log
+- **open_log**: Deschide un fisier de log dintr-o ruta specificata si il returneaza.
+
+### Parcurgerea directoarelor
+- **get_dir**: Deschide si returneaza toate subdirectoarele dintr-un director sub forma unei liste simplu inlantuite sub forma de ruta absoluta.
+- **Structura listei**: list->path, list->next si mereu se termina cu NULL.
+
+
