@@ -1,6 +1,7 @@
 #define _DEFAULT_SOURCE
 #include "telemetry_sv.h"
 #include "rw_func.h"
+#include "dynamic_list.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -63,7 +64,7 @@ int32_t createServer(const char* port)
     }
 
     if (rp == NULL)
-        errMsg("Could not bind socket to any address.");
+        errExit("Could not bind socket to any address.");
 
     if (listen(sfd, BACKLOG) == -1)
         errExit("listen");
@@ -89,27 +90,27 @@ int32_t createServer(const char* port)
         }
         printf("received request type: %u\n", parameters[0]);
         
-        if (readn(cfd, &parameters[1], 1) < 0) {
-            close(cfd);
-            errMsg("Failed to read size of channel path.");
-            continue;
-        }
-
-        printf("channel path length is %d\n", parameters[1]);
-
-        channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
-        channel_path[parameters[1]] = '\0';
-
-        if (readn(cfd, channel_path, parameters[1]) < 0) {
-            close(cfd);
-            errMsg("Failed to read channel path.");
-            free(channel_path);
-            continue;
-        }
-        printf("channel path is %s\n", channel_path);
-
         switch (parameters[0]) {
             case READ_OPERATION:
+                if (readn(cfd, &parameters[1], 1) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read size of channel path.");
+                    continue;
+                }
+
+                printf("channel path length is %d\n", parameters[1]);
+
+                channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
+                channel_path[parameters[1]] = '\0';
+
+                if (readn(cfd, channel_path, parameters[1]) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read channel path.");
+                    free(channel_path);
+                    continue;
+                }
+                printf("channel path is %s\n", channel_path);
+
                 if (readn(cfd, &parameters[2], 1) < 0) {
                     close(cfd);
                     errMsg("Failed to read size of message.");
@@ -141,6 +142,25 @@ int32_t createServer(const char* port)
                 
                 continue;
             case WRITE_OPERATION:
+                if (readn(cfd, &parameters[1], 1) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read size of channel path.");
+                    continue;
+                }
+
+                printf("channel path length is %d\n", parameters[1]);
+
+                channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
+                channel_path[parameters[1]] = '\0';
+
+                if (readn(cfd, channel_path, parameters[1]) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read channel path.");
+                    free(channel_path);
+                    continue;
+                }
+                printf("channel path is %s\n", channel_path);
+
                 message_len = getMessage(channel_path, &message);
                 byte1 = message_len >> 8;
                 byte2 = message_len & 0xFF;
@@ -166,6 +186,30 @@ int32_t createServer(const char* port)
                 }
                 
                 continue;
+            case SUBSCRIBE_OPERATION:
+                addElemToList(new_tlm_sv.client_list, cfd);
+                continue;
+            case NOTIFY_OPERATION:
+                if (readn(cfd, &parameters[1], 1) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read size of channel path.");
+                    continue;
+                }
+
+                printf("channel path length is %d\n", parameters[1]);
+
+                channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
+                channel_path[parameters[1]] = '\0';
+
+                if (readn(cfd, channel_path, parameters[1]) < 0) {
+                    close(cfd);
+                    errMsg("Failed to read channel path.");
+                    free(channel_path);
+                    continue;
+                }
+                printf("channel path is %s\n", channel_path);
+
+                continue;
             default:
                 errMsg("Unknown operation type.");
                 continue;
@@ -182,7 +226,12 @@ int32_t createServer(const char* port)
 
 int closeServer(tlm_sv_t sv)
 {
-   close(sv.sfd);
+   if (close(sv.sfd) == -1) {
+       errMsg("close");
+       return -1;
+   }
+
+   return 0;
 }
 
 int main()

@@ -2,6 +2,7 @@
 #define HEADER_TELEMETRY_SV
 
 #include "tlpi_hdr.h"
+#include "dynamic_list.h"
 #include <stdint.h>
 
 #define BACKLOG 100
@@ -9,10 +10,12 @@
 
 #define READ_OPERATION 0 // the client wants to read a message from channel
 #define WRITE_OPERATION 1 // the client wants to write a message to channel
+#define SUBSCRIBE_OPERATION 2
+#define NOTIFY_OPERATION 3
 
 typedef struct {
     int sfd;
-    //cl_list* client_list;
+    List* client_list; // list of people to notify
 } tlm_sv_t;
 
 // the server is iterative, might make it concurrent

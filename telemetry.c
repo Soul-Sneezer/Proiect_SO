@@ -124,6 +124,16 @@ tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const cha
     new_tlm.type = type;
     uint32_t port_value;
 
+    if (type == TLM_CLOSED) {
+        errMsg("Can't open channel with type TLM_CLOSED. Valid types: TLM_PUBLISHER, TLM_SUBSCRIBER, TLM_BOTH.");
+        return new_tlm;
+    }
+
+    if (type != TLM_BOTH && type != TLM_PUBLISHER && type != TLM_SUBSCRIBER) {
+        errMsg("Invalid channel type. Can be TLM_BOTH, TLM_PUBLISHER or TLM_SUBSCRIBER.");
+        return new_tlm;
+    }
+
     if (!isValidHost(ip)) {
         errMsg("Invalid host. Expected input is an IPv4 address of the form:'n.n.n.n' where n is a 8 bit unsigned value OR\n \ 
                                     an IPv6 address of the form:'hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh:hhhh' where h is a hexadecimal value OR\n \
@@ -249,7 +259,7 @@ const char* tlm_read(tlm_t token, uint32_t* message_id)
     }
 
     printf("received message from server: %s\n", message);
-   return message; 
+    return message; 
 }
 
 int tlm_post(tlm_t token, const char* message)
@@ -319,7 +329,9 @@ void tlm_close(tlm_t token)
     }
 
     free(token.channel_path);
-    close(token.sfd);
+    if (close(token.sfd) == -1) {
+        errMsg("close");
+    }
     token.type = TLM_CLOSED;
 }
 

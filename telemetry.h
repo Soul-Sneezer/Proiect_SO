@@ -19,7 +19,6 @@ typedef struct {
     int type;
 
     int sfd;
-    time_t timestamp;
     uint32_t user;
 
     uint8_t channel_len;

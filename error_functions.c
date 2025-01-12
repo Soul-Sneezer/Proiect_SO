@@ -1,7 +1,6 @@
 #include <stdarg.h>
 #include "error_functions.h"
 #include "tlpi_hdr.h"
-#include "ename.c.inc"
 
 #ifdef __GNUC__
 __attribute__ ((__noreturn__))
@@ -32,7 +31,7 @@ static void outputError(Boolean useErr, int err, Boolean flushStdout, const char
     vsnprintf(userMsg, BUF_SIZE, format, ap);
 
     if (useErr)
-        snprintf(errText, BUF_SIZE, " [%s %s]", (err > 0 && err <= MAX_ENAME) ? ename[err] : "?UNKNOWN?", strerror(err));
+        snprintf(errText, BUF_SIZE, " [%s]", strerror(err));
     else
         snprintf(errText, BUF_SIZE, ":");
 
