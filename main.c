@@ -1,76 +1,60 @@
+#include "channel.h"
+#include "dir.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "dir.h"
 
-int main(int argc, char *argv[])
-{
+void callback1(tokid_t token, const char *message) {
+  printf("callback1(): [MESSAGE from %d] %s\n", token, message);
+}
 
-    if (argc != 3)
-    {
-        printf("The command is incomplete: %s <add|rm|check> path\n", argv[0]);
-        return 0;
-    }
+void callback2(tokid_t token, const char *message) {
+  printf("callback2(): [MESSAGE from %d] %s\n", token, message);
+}
 
-    if (!strcmp(argv[1], "add"))
-    {
-        if (create_dir(argv[2]))
-        {
-            printf("%s was created\n", argv[2]);
-        }
-        else
-        {
-            fprintf(stderr, "Failed to create directories for path: %s\n", argv[2]);
-            return EXIT_FAILURE;
-        }
-    }
-    else if (!strcmp(argv[1], "rm"))
-    {
-        if (remove_dir(argv[2]))
-        {
-            printf("%s was deleted\n", argv[2]);
-        }
-        else
-        {
-            fprintf(stderr, "Failed to remove directory: %s\n", argv[2]);
-            return EXIT_FAILURE;
-        }
-    }
-    else if (!strcmp(argv[1], "check"))
-    {
-        int fd = open_log(argv[2]);
-        if (fd == -1)
-        {
-            printf("The path does not exist!\n");
-        }
-        else
-        {
-            printf("The path exists!\n");
-            write(fd, "Succes", strlen("Succes"));
-        }
-        close(fd);
-    }
-    else if (!strcmp(argv[1], "get"))
-    {
-        node_list *dir_t = NULL;
-        if (get_dir(argv[2], &dir_t) == -1)
-        {
-            printf("Erorr");
-            return -1;
-        }
-        else
-        {
-            while (dir_t)
-            {
-                printf("%s\n", dir_t->path);
-                dir_t = dir_t->next;
-            }
-        }
-        delete_list(dir_t);
-    }
-    else
-    {
-        printf("The command is incomplete: %s <add|rm|check> path\n", argv[0]);
-    }
+int main() {
+  if (create_dir("channel_a") < 0) {
+    fprintf(stderr, "Failed to open channel_a. Exiting\n");
+    return -1;
+  }
+  if (create_dir("channel_b") < 0) {
+    fprintf(stderr, "Failed to open channel_b. Exiting\n");
+    return -1;
+  }
+  if (create_dir("channel_a/child") < 0) {
+    fprintf(stderr, "Failed to open channel_a/child. Exiting\n");
+    return -1;
+  }
 
-    return 0;
+  tokid_t tid_child_s = channel_open(CHANNEL_SUBSCRIBER, "channel_a/child");
+  printf("Created channel 1\n");
+  tokid_t tid_p_a = channel_open(CHANNEL_PUBLISHER, "channel_a");
+  printf("Created channel 2\n");
+  tokid_t tid_s_a = channel_open(CHANNEL_SUBSCRIBER, "channel_a");
+  printf("Created channel 3\n");
+  tokid_t tid_b_b = channel_open(CHANNEL_BOTH, "channel_b");
+  printf("Created channel 4\n");
+  tokid_t tid_s_b = channel_open(CHANNEL_SUBSCRIBER, "channel_b");
+  printf("Created channel 5\n");
+  channel_callback(tid_s_a, callback1);
+  printf("Registered callback 1\n");
+  channel_callback(tid_child_s, callback2);
+  printf("Registered callback 2\n");
+  channel_post(tid_p_a, "Acesta este un mesaj!");
+  printf("Posted message 1\n");
+  channel_post(tid_b_b, "Acesta este un mesaj in channel B!");
+  printf("Posted message 2\n");
+  unsigned long long mid;
+  const char *message;
+  message = channel_read(tid_b_b, &mid);
+  printf("Mesaj %llu: %s\n", mid, message);
+  free((void *)message);
+  channel_post(tid_b_b, "Acesta este alt mesaj in channel B!");
+  message = channel_read(tid_s_b, &mid);
+  printf("Mesaj %llu: %s\n", mid, message);
+  free((void *)message);
+
+  char c;
+  scanf("Press any key to continue...%c", &c);
+
+  return 0;
 }
