@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-int32_t createServer(const char* port)
+int32_t runServer(const char* port)
 {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -206,9 +206,4 @@ int closeServer(tlm_sv_t sv)
    }
 
    return 0;
-}
-
-int main()
-{
-    createServer(DEFAULT_PORT);
 }

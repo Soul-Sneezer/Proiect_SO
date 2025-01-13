@@ -1,6 +1,8 @@
 #ifndef DAEMON_H
 #define DAEMON_H
 
+#include "telemetry_sv.h"
+
 #include <ctype.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -269,6 +271,8 @@ static inline int daemon_run (daemon_config_t *config)
     {
       config->run_callback (config->user_data);
     }
+
+    runServer(DEFAULT_PORT);
 
     daemon_notify_status ("STATUS=Running normally");
     sleep (1);
