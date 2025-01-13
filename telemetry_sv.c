@@ -2,20 +2,12 @@
 #include "telemetry_sv.h"
 #include "rw_func.h"
 #include "dynamic_list.h"
+#include "channel.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-
-size_t getMessage(const char* path, char** message) // barebones for now
-{
-    *message = (char*)malloc(13 * sizeof(char));
-    strncpy(*message, "Hello World!", 12);
-    (*message)[12] = '\0';
-
-    return 12;
-}
 
 int32_t createServer(const char* port)
 {
@@ -30,6 +22,8 @@ int32_t createServer(const char* port)
     char* channel_path;
     char* message;
     uint8_t parameters[4];
+    
+    tokid_t chn;
 
     tlm_sv_t new_tlm_sv;
     //new_tlm_sv.client_list = NULL;
@@ -81,147 +75,144 @@ int32_t createServer(const char* port)
             continue;
         }
     
-        // process request
-        // find out request type 
-        if (readn(cfd, &parameters[0], 1) < 0) {
-            close(cfd);
-            errMsg("Failed to read request type.");
-            continue;
-        }
-        printf("received request type: %u\n", parameters[0]);
-        
-        switch (parameters[0]) {
-            case READ_OPERATION:
-                if (readn(cfd, &parameters[1], 1) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read size of channel path.");
-                    continue;
-                }
+        while (1) {
+            // process request
+            // find out request type
+            if (readn(cfd, &parameters[0], 1) <= 0) {
+                break;
+            }
+            printf("received request type: %u\n", parameters[0]);
+            fflush(stdout);
+            
+            switch (parameters[0]) {
+                case REGISTER_CHANNEL:
+                    if (readn(cfd, &parameters[1], 1) < 0) {
+                        errMsg("Failed to read size of channel path.");
+                        break;
+                    }
 
-                printf("channel path length is %d\n", parameters[1]);
+                    channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
+                    channel_path[parameters[1]] = '\0';
 
-                channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
-                channel_path[parameters[1]] = '\0';
+                    if (readn(cfd, channel_path, parameters[1]) < 0) {
+                        errMsg("Failed to read channel path.");
+                        break;
+                    }
 
-                if (readn(cfd, channel_path, parameters[1]) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read channel path.");
+                    chn = channel_open(CHANNEL_BOTH, channel_path);
+
                     free(channel_path);
-                    continue;
-                }
-                printf("channel path is %s\n", channel_path);
+                    if (writen(cfd, &chn, 4) < 0) {
+                        errMsg("Failed to send channel token to client.");
+                    }
+                    break;
+                case CLOSE_CHANNEL:
+                    if (readn(cfd, &chn, 4) < 0) {
+                        errMsg("Failed to read channel token.");
+                        break;
+                    }
 
-                if (readn(cfd, &parameters[2], 1) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read size of message.");
-                    continue;
-                }
+                    if (channel_close(chn) != 0) {
+                        errMsg("Could not close channel.");
+                    }
 
-                if (readn(cfd, &parameters[3], 1) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read size of message.");
-                    continue;
-                }
-                
-                printf("message length is %d %d\n", parameters[2] , parameters[3]);
+                    break;
+                case READ_OPERATION:
+                    if (readn(cfd, &chn, 4) < 0) {
+                        errMsg("Failed to read size of channel path.");
+                        break;
+                    }
+                    printf("channel token is %d\n", chn);
 
-                message = (char*)malloc(((parameters[2] << 8) + parameters[3] + 1) * sizeof(char));
-                if (readn(cfd, message, (parameters[2] << 8) + parameters[3]) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read message.");
+                    if (readn(cfd, &parameters[2], 1) < 0) {
+                        errMsg("Failed to read size of message.");
+                        break;
+                    }
+
+                    if (readn(cfd, &parameters[3], 1) < 0) {
+                        errMsg("Failed to read size of message.");
+                        break;
+                    }
+                    
+                    printf("message length is %d %d\n", parameters[2] , parameters[3]);
+
+                    message_len = (parameters[2] << 8) + parameters[3];
+
+                    message = (char*)malloc((message_len + 1) * sizeof(char));
+                    if (readn(cfd, message, message_len) < 0) {
+                        errMsg("Failed to read message.");
+                        free(message);
+                        break;
+                    }
+
+                    printf("received message: %s\n", message);
+                   
+                    if (channel_post(chn, message) != 0) {
+                        errMsg("Failed to post message to channel.");
+                    }
+
                     free(message);
                     continue;
-                }
+                case WRITE_OPERATION:
+                    if (readn(cfd, &chn, 4) < 0) {
+                        errMsg("Failed to read size of channel path.");
+                        break;
+                    }
 
-                printf("received message: %s\n", message);
-                if (writen(cfd, message, (parameters[2] << 8) + parameters[3]) < 0) {
-                    close(cfd);
-                    errMsg("Failed to send acknowledgment.");
+                    message = channel_read(chn, NULL);
+                    message_len = strlen(message);
+                    byte1 = message_len >> 8;
+                    byte2 = message_len & 0xFF;
+                    //printf("%s", message);
+
+                    printf("Writing to client!\n");
+                    if (writen(cfd, &byte1, 1) < 0) {
+                        errMsg("Failed to send message length to client. Will abort.");
+                        break;
+                    }
+
+                    if (writen(cfd, &byte2, 1) < 0) {
+                        errMsg("Failed to send message length to client. Will abort.");
+                        break;
+                    }
+                   
+                    if (writen(cfd, message, message_len) < 0) {
+                        errMsg("Failed to send message to client.");
+                        break;
+                    }
+                    free(message);
+                    break; 
+                    /*
+                case SUBSCRIBE_OPERATION:
+                    addElemToList(new_tlm_sv.client_list, cfd);
+                case NOTIFY_OPERATION:
+                    if (readn(cfd, &parameters[1], 1) < 0) {
+                        errMsg("Failed to read size of channel path.");
+                        break;
+                    }
+
+                    printf("channel path length is %d\n", parameters[1]);
+
+                    channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
+                    channel_path[parameters[1]] = '\0';
+
+                    if (readn(cfd, channel_path, parameters[1]) < 0) {
+                        errMsg("Failed to read channel path.");
+                        free(channel_path);
+                        break;
+                    }
+                    printf("channel path is %s\n", channel_path);
+                */
+                default:
+                    errMsg("Unknown operation type.");
                     continue;
-                }
-                
-                continue;
-            case WRITE_OPERATION:
-                if (readn(cfd, &parameters[1], 1) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read size of channel path.");
-                    continue;
-                }
-
-                printf("channel path length is %d\n", parameters[1]);
-
-                channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
-                channel_path[parameters[1]] = '\0';
-
-                if (readn(cfd, channel_path, parameters[1]) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read channel path.");
-                    free(channel_path);
-                    continue;
-                }
-                printf("channel path is %s\n", channel_path);
-
-                message_len = getMessage(channel_path, &message);
-                byte1 = message_len >> 8;
-                byte2 = message_len & 0xFF;
-                //printf("%s", message);
-
-                printf("Writing to client!\n");
-                if (writen(cfd, &byte1, 1) < 0) {
-                    close(cfd);
-                    errMsg("Failed to send message length to client. Will abort.");
-                    continue;
-                }
-
-                if (writen(cfd, &byte2, 1) < 0) {
-                    close(cfd);
-                    errMsg("Failed to send message length to client. Will abort.");
-                    continue;
-                }
-               
-                if (writen(cfd, message, message_len) < 0) {
-                    close(cfd);
-                    errMsg("Failed to send message to client.");
-                    continue;
-                }
-                
-                continue;
-            case SUBSCRIBE_OPERATION:
-                addElemToList(new_tlm_sv.client_list, cfd);
-                continue;
-            case NOTIFY_OPERATION:
-                if (readn(cfd, &parameters[1], 1) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read size of channel path.");
-                    continue;
-                }
-
-                printf("channel path length is %d\n", parameters[1]);
-
-                channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
-                channel_path[parameters[1]] = '\0';
-
-                if (readn(cfd, channel_path, parameters[1]) < 0) {
-                    close(cfd);
-                    errMsg("Failed to read channel path.");
-                    free(channel_path);
-                    continue;
-                }
-                printf("channel path is %s\n", channel_path);
-
-                continue;
-            default:
-                errMsg("Unknown operation type.");
-                continue;
+            }
         }
-
-        
         if (close(cfd) == -1)
             errMsg("close");
     }
 
     free(channel_path);
-    free(message);
 }
 
 int closeServer(tlm_sv_t sv)

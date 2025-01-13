@@ -8,7 +8,9 @@ SRCS = \
     ./rw_func.c \
 	./telemetry_sv.c \
 	./error_functions.c \
-	./dynamic_list.c 
+	./dynamic_list.c \
+	./channel.c \
+	./dir.c
 
 # Header files
 HDRS = \
@@ -16,7 +18,9 @@ HDRS = \
 	./error_functions.h \
     ./tlpi_hdr.h \
 	./dynamic_list.h \
-    ./telemetry_sv.h
+	./dir.h \
+	./channel.h \
+    ./telemetry_sv.h 
 
 # Output executable
 TARGET = telemetry_sv

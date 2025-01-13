@@ -10,8 +10,10 @@
 
 #define READ_OPERATION 0 // the client wants to read a message from channel
 #define WRITE_OPERATION 1 // the client wants to write a message to channel
-#define SUBSCRIBE_OPERATION 2
-#define NOTIFY_OPERATION 3
+#define REGISTER_CHANNEL 2
+#define CLOSE_CHANNEL 3
+#define SUBSCRIBE_OPERATION 4
+#define NOTIFY_OPERATION 5
 
 typedef struct {
     int sfd;

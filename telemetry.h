@@ -19,10 +19,7 @@ typedef struct {
     int type;
 
     int sfd;
-    uint32_t user;
-
-    uint8_t channel_len;
-    char* channel_path;
+    uint32_t chn;
 } tlm_t; 
 
 tlm_t tlm_open(uint8_t type, const char* channel_name, const char* ip, const char* port);

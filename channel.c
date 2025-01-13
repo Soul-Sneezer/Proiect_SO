@@ -40,7 +40,7 @@ static int parse_log_string(const char *log_string, tokid_t *token,
   return SUCCESS; // Success
 }
 
-// Funciton to compute the message ID
+// Function to compute the message ID
 static unsigned long long compute_mid(uid_t user_id, time_t timestamp) {
   long long p = 1;
   if (user_id == 0)
@@ -225,7 +225,7 @@ int channel_post(tokid_t token, const char *message) {
   rewind(log_file);
   fscanf(log_file, "%[^\n]", long_message);
 
-  // Print message in children chennels
+  // Print message in children channels
   node_list *head = malloc(sizeof(*head));
   head->path = NULL;
   head->next = NULL;
@@ -287,7 +287,7 @@ int channel_post(tokid_t token, const char *message) {
   return SUCCESS;
 }
 
-// Read mesasge from channel connection with token
+// Read message from channel connection with token
 const char *channel_read(tokid_t token, unsigned long long *message_id) {
   // Get user from token
   user_t *user = &users.buf[token];
@@ -332,7 +332,8 @@ const char *channel_read(tokid_t token, unsigned long long *message_id) {
   }
 
   // Compute message id
-  *message_id = compute_mid(users.buf[message_token].user_id, timestamp);
+  if (message_id != NULL)
+    *message_id = compute_mid(users.buf[message_token].user_id, timestamp);
 
   fclose(log_file);
   close(log_fd);
