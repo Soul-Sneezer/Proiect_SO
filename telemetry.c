@@ -234,7 +234,6 @@ const char* tlm_read(tlm_t token, uint32_t* message_id)
 
     uint8_t opcode = 1;
     uint16_t message_length = 0;
-    uint8_t byte1, byte2;
     char* message;
     if (writen(token.sfd, &opcode, 1) < 0) {
         errMsg("Could not pass read request to server.");
@@ -246,18 +245,10 @@ const char* tlm_read(tlm_t token, uint32_t* message_id)
         return NULL;
     }
 
-    if (readn(token.sfd, &byte1, 1) < 0) {
+    if (readn(token.sfd, &message_length, 2) < 0) {
         errMsg("Server did not respond.");
         return NULL;
     }
-
-    if (readn(token.sfd, &byte2, 1) < 0) {
-        errMsg("Server did not respond.") ;
-        return NULL;
-    }
-
-    message_length += byte1 << 8;
-    message_length += byte2;
 
     printf("message_length is: %d\n", message_length);
     message = (char*)malloc((message_length + 1) * sizeof(char));
@@ -290,8 +281,6 @@ int tlm_post(tlm_t token, const char* message)
     }
 
     uint16_t msg_len = message_length;
-    uint8_t byte1 = message_length >> 8;
-    uint8_t byte2 = message_length & 0xFF;
     uint8_t opcode = 0;
 
     // send information to server
@@ -305,17 +294,12 @@ int tlm_post(tlm_t token, const char* message)
         return -1;
     }
 
-    if (writen(token.sfd, &byte1, 1) < 0) {
+    if (writen(token.sfd, &msg_len, 2) < 0) {
         errMsg("Connection failed. Could not send message length to server.");
         return -1;
     }
 
-    if (writen(token.sfd, &byte2, 1) < 0) {
-        errMsg("Connection failed. Could not send message length to server.");
-        return -1;
-    }
-
-    if (writen(token.sfd, message, message_length) < 0) {
+    if (writen(token.sfd, message, msg_len) < 0) {
         errMsg("Connection failed. Could not send message to server.");
         return -1;
     }

@@ -16,12 +16,12 @@ int32_t createServer(const char* port)
     socklen_t addrlen;
     struct sockaddr_storage claddr;
     int cfd, sfd, optval, s;
-    size_t message_len;
-    uint8_t byte1, byte2;
+    uint16_t message_len;
 
     char* channel_path;
     char* message;
-    uint8_t parameters[4];
+    uint8_t opcode;
+    uint8_t channel_len;
     
     tokid_t chn;
 
@@ -78,23 +78,23 @@ int32_t createServer(const char* port)
         while (1) {
             // process request
             // find out request type
-            if (readn(cfd, &parameters[0], 1) <= 0) {
+            if (readn(cfd, &opcode, 1) <= 0) {
                 break;
             }
-            printf("received request type: %u\n", parameters[0]);
+            printf("received request type: %u\n", opcode);
             fflush(stdout);
             
-            switch (parameters[0]) {
+            switch (opcode) {
                 case REGISTER_CHANNEL:
-                    if (readn(cfd, &parameters[1], 1) < 0) {
+                    if (readn(cfd, &channel_len, 1) < 0) {
                         errMsg("Failed to read size of channel path.");
                         break;
                     }
 
-                    channel_path = (char*)malloc((parameters[1] + 1) * sizeof(char));
-                    channel_path[parameters[1]] = '\0';
+                    channel_path = (char*)malloc((channel_len + 1) * sizeof(char));
+                    channel_path[channel_len] = '\0';
 
-                    if (readn(cfd, channel_path, parameters[1]) < 0) {
+                    if (readn(cfd, channel_path, channel_len) < 0) {
                         errMsg("Failed to read channel path.");
                         break;
                     }
@@ -124,19 +124,10 @@ int32_t createServer(const char* port)
                     }
                     printf("channel token is %d\n", chn);
 
-                    if (readn(cfd, &parameters[2], 1) < 0) {
+                    if (readn(cfd, &message_len, 2) < 0) {
                         errMsg("Failed to read size of message.");
                         break;
                     }
-
-                    if (readn(cfd, &parameters[3], 1) < 0) {
-                        errMsg("Failed to read size of message.");
-                        break;
-                    }
-                    
-                    printf("message length is %d %d\n", parameters[2] , parameters[3]);
-
-                    message_len = (parameters[2] << 8) + parameters[3];
 
                     message = (char*)malloc((message_len + 1) * sizeof(char));
                     if (readn(cfd, message, message_len) < 0) {
@@ -161,21 +152,13 @@ int32_t createServer(const char* port)
 
                     message = channel_read(chn, NULL);
                     message_len = strlen(message);
-                    byte1 = message_len >> 8;
-                    byte2 = message_len & 0xFF;
-                    //printf("%s", message);
 
                     printf("Writing to client!\n");
-                    if (writen(cfd, &byte1, 1) < 0) {
+                    if (writen(cfd, &message_len, 2) < 0) {
                         errMsg("Failed to send message length to client. Will abort.");
                         break;
                     }
 
-                    if (writen(cfd, &byte2, 1) < 0) {
-                        errMsg("Failed to send message length to client. Will abort.");
-                        break;
-                    }
-                   
                     if (writen(cfd, message, message_len) < 0) {
                         errMsg("Failed to send message to client.");
                         break;
