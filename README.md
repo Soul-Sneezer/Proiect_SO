@@ -14,7 +14,7 @@ Canalele de distributie pot fi organizate ierarhic, in asa fel incat un mesaj tr
 # Daemonizare
 Daemonul respecta modelul de "new-style daemons". Daemonizarea este realizata printr-o librarie C header-only, aceasta permitand daemonizarea in asa fel incat sa se creeze un PID file, sa ofere optiunea de logging (expunand o interfata dedicata) si sa urmeze desigur pasii necesari daemonizarii conforme.
 
-Libraria daemon.h expune un API de daeonizare cu urmatoarele functionalitati:
+Libraria daemon.h expune un API de daemonizare cu urmatoarele functionalitati:
 - pornire si event-loop pentru un daemon;
 - API secundar de logging
 - integrare systemd (scuze, dar acapareaza lumea)
@@ -28,3 +28,18 @@ Pentru a folosi daemon.h:
 - de preferat, in codul dumneavoastra, verificati starea daemonului si actionati corespunzator:
   - daemon_should_reload() returneaza daca s-a primit SIGHUP; in caz afirmativ, daca s-a setat deja handlerul de reload, va rog pregatiti daemonul pentru a redeschide socket-uri, fisiere, etc.;
   - daemon_is_running() returneaza daca inca ruleaza daemonul; in caz in care nu mai ruleaza, inchideti inainte sa se termine event-loop-ul toate socket-urile si descriptorii de fisiere deschis;
+
+# Reprezentare canale
+
+## Libraria dir.h
+### Crearea si stergerea directoarelor
+- **create_dir**: Permite crearea de directoare multiple(separate prin '/') si configurarea initiala a fisierelor de log(log.txt) in fiecare director nou creat.
+- **remove_dir**: Permite stergerea directoarelor si a intregului continut din ele si din adancimea lor.
+
+### Gestionarea fisierelor de log
+- **open_log**: Deschide un fisier de log dintr-o ruta specificata si il returneaza.
+
+### Parcurgerea directoarelor
+- **get_dir**: Deschide si returneaza toate subdirectoarele dintr-un director sub forma unei liste simplu inlantuite sub forma de ruta absoluta.
+- **Structura listei**: list->path, list->next si mereu se termina cu NULL.
+
