@@ -8,6 +8,8 @@ Type=simple
 StandardOutput=journal
 StandardError=journal
 
+NotifyAccess=all
+
 ExecStart=/usr/bin/telemetry_sv
 Restart=on-failure
 
