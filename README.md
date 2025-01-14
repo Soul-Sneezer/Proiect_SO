@@ -5,6 +5,26 @@ Daemonul se ocupa cu distributia de mesaje pe canale de distributie, intre mai m
 
 Canalele de distributie pot fi organizate ierarhic, in asa fel incat un mesaj trimis pe un canal 'parinte' va fi trimis si pe canalele 'copil'.
 
+# Utilizare
+Clonarea proiectului:
+```
+git clone https://github.com/Soul-Sneezer/Proiect_SO.git
+```
+Compilare:
+```
+cd Proiect_SO
+make -f Makefile_telemetry all
+make -f Makefile_telemetry_sv all
+```
+Rulare server:
+```
+./telemetry_sv
+```
+Ruleare exemplu client:
+```
+./telemetry_cl
+```
+
 # Distribuire task-uri:
 * **Pascaru Dan Alexandru** – Reprezentare canale
 * **Petre Robert Cristian** – Comunicare librarie-daemon
