@@ -28,7 +28,7 @@ Ruleare exemplu client:
 # Distribuire task-uri:
 * **Pascaru Dan Alexandru** – Reprezentare canale
 * **Petre Robert Cristian** – Comunicare librarie-daemon
-* **Popescu Tiberiu** – Comunicare user-canale
+* **Popescu Tiberiu** – Functionalitatea interna a canalelor
 * **Voicu Ioan Vladut** – Creare daemon
 
 # Daemonizare
@@ -117,9 +117,16 @@ Utilizata pentru a comunica cu daemon-ul.
 ### Citire mesaje
 - **tlm_read**: Citeste un mesaj de pe un canal, fiind necesar tokenul obtinut cu **tlm_open**.
 
+# Funtionalitatea interna a canalelor
+Functionalitatea canalelor este implementata in fisierele ```channel.h``` si ```channel.c```. Functiile sunt denumite sugestiv si urmeaza un tipar similar cu cele din api-ul serverului care le apeleaza. Astfel se disting:
+- **channel_open**: Inregistreaza o conexiune la un canal. Daca acesta nu exista, se va arunca o eroare.
+- **channel_callback**: Inregistreaza o functie callback atasata unei conexiuni de tip SUBSCRIBER. Aceasta este apelata de fiecare data cand un mesaj este postat pe canalul respectiv.
+- **channel_read**: Citeste si intoarce ultimul mesaj emis intr-un anumit canal.
+- **channel_post**: Emite recursiv un mesaj intr-un canal si in toti descendentii acestuia.
+- **channel_close**: Marcheaza o conexiune la un canal ca fiind inchisa. Locul in memorie unde aceasta era salvata poate fi folosit pentru o conexiune noua.
+
 # Potentiale imbunatatiri
 * Encriptare mesaje
-* Adaugarea de UID pentru a distinge intre mesajele utilizatorilor
 * Comunicarea cu serverul printr-un pseudoterminal
 * Server concurent (in prezent este iterativ)
 
