@@ -144,13 +144,8 @@ tokid_t channel_open(int type, const char *channel_name) {
     return UNKNOWN_CHANNEL_TYPE;
   }
 
-  int log_fd = open_log(channel_name);
-  if (log_fd < 0) {
-    fprintf(stderr,
-            "channel_open: Unknown channel name; channel does not exist\n");
-    return FAILED_CHANNEL_OPEN;
-  }
-  close(log_fd);
+  create_dir((char *)channel_name);
+  printf("%s\n", channel_name);
 
   user_t user = create_user(type, channel_name);
 
