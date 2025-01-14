@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <pthread.h>
 
+extern int server_running;
+
 typedef enum
 {
   LOG_LEVEL_ERROR = 0,
@@ -290,7 +292,7 @@ static inline int daemon_run (daemon_config_t *config)
     daemon_notify_status ("STATUS=Running normally");
     sleep (1);
   }
-
+  server_running = 0;
   pthread_join(server_thread, NULL);
   return 0;
 }
