@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <pthread.h>
 
 typedef enum
 {
@@ -141,6 +142,14 @@ static void handle_signal (int sig)
   }
 }
 
+// Function to wrap runServer for threading
+static void *server_thread_func(void *arg) {
+    runServer(DEFAULT_PORT); // Blocking server operation
+    return NULL;
+}
+
+pthread_t server_thread;
+
 static inline int initialize_daemon (const daemon_config_t *config)
 {
   if (!config)
@@ -174,6 +183,12 @@ static inline int initialize_daemon (const daemon_config_t *config)
   initialize_sd_notify ();
   my_sd_notify (0, "READY=1");
   log_info ("Daemon initialization complete");
+    
+    // Start the server in a separate thread
+    if (pthread_create(&server_thread, NULL, server_thread_func, NULL) != 0) {
+        log_error("Failed to create server thread");
+        return -1;
+    }
 
   return 0;
 }
@@ -243,9 +258,9 @@ static inline void daemon_notify_status (const char *status)
 
 static inline int daemon_run (daemon_config_t *config)
 {
-  if (!config)
-    return -1;
-
+    if (!config)
+        return -1;
+  
   while (daemon_is_running ())
   {
     if (daemon_should_reload ())
@@ -272,12 +287,11 @@ static inline int daemon_run (daemon_config_t *config)
       config->run_callback (config->user_data);
     }
 
-    runServer(DEFAULT_PORT);
-
     daemon_notify_status ("STATUS=Running normally");
     sleep (1);
   }
 
+  pthread_join(server_thread, NULL);
   return 0;
 }
 

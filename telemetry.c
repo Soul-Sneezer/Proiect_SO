@@ -344,7 +344,7 @@ int tlm_type(tlm_t token)
 
 int main()
 {
-    tlm_t tlm1 = tlm_open(TLM_BOTH, "channel_b", "localhost", DAEMON_DEFAULT_PORT);
+    tlm_t tlm1 = tlm_open(TLM_BOTH, "/home/robert/Desktop/coding_projects/c/Proiect_SO/channel_a", "localhost", DAEMON_DEFAULT_PORT);
     //tlm_close(tlm1);
     //tlm_t tlm2 = tlm_open(TLM_BOTH, "channel_a", "localhost", DAEMON_DEFAULT_PORT);
     //tlm_close(tlm2);

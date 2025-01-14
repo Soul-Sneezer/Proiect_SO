@@ -23,6 +23,5 @@ typedef struct {
 // the server is iterative, might make it concurrent
 int32_t runServer(const char* port);
 int32_t closeServer(tlm_sv_t sv);
-size_t getMessage(const char* path, char** message); // placeholder for function that retrieves messaje from a channel
 
 #endif

@@ -4,6 +4,7 @@
 #include "dynamic_list.h"
 #include "channel.h"
 
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -64,17 +65,23 @@ int32_t runServer(const char* port)
         errExit("listen");
 
     freeaddrinfo(result);
+    fcntl(sfd, F_SETFL, O_NONBLOCK);
 
     for (;;) { // client handling loop
         // accept connection 
         addrlen = sizeof(struct sockaddr_storage);
         cfd = accept(sfd, (struct sockaddr*)&claddr, &addrlen);
-        
-        if(cfd == -1) {
-            errMsg("accept");
-            continue;
+       
+        if (cfd < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // No connections; sleep briefly to avoid busy-wait
+                usleep(100000); // Sleep for 100 ms
+                continue;
+            } else {
+                errMsg("accept");
+                break;
+            }
         }
-    
         while (1) {
             // process request
             // find out request type
