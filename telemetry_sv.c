@@ -10,8 +10,11 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+int server_running = 0;
+
 int32_t runServer(const char* port)
 {
+    server_running = 1;
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     socklen_t addrlen;
@@ -49,8 +52,12 @@ int32_t runServer(const char* port)
 
         new_tlm_sv.sfd = sfd;
 
-        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
             errExit("setsockopt");
+
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
+            perror("setsockopt");
+}
 
         if (bind (sfd, rp->ai_addr, rp->ai_addrlen) == 0)
             break;
@@ -82,14 +89,14 @@ int32_t runServer(const char* port)
                 break;
             }
         }
-        while (1) {
+        while (server_running) {
             // process request
             // find out request type
             if (readn(cfd, &opcode, 1) <= 0) {
                 break;
             }
+
             printf("received request type: %u\n", opcode);
-            fflush(stdout);
             
             switch (opcode) {
                 case REGISTER_CHANNEL:
