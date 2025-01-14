@@ -43,3 +43,21 @@ Pentru a folosi daemon.h:
 - **get_dir**: Deschide si returneaza toate subdirectoarele dintr-un director sub forma unei liste simplu inlantuite sub forma de ruta absoluta.
 - **Structura listei**: list->path, list->next si mereu se termina cu NULL.
 
+# Comunicare librarie-daemon
+## Libraria telemetry.h
+Utilizata pentru a comunica cu daemon-ul.
+### Crearea si stergerea canalelor de comunicatie
+- **tlm_open**: Permite crearea de conexiuni cu un daemon la adresa si portul specificate, avand scopul de a comunica cu canalul dorit.
+- **tlm_close**: Inchide conexiunea. Tokenul primit de la **tlm_open** nu mai este valabil.
+- **tlm_type**: Iti permite sa vizualizezi tipul de conexiune al unui token. Poate fi: **TLM_PUBLISHER**,**TLM_SUBSCRIBER**,**TLM_BOTH** sau **TLM_CLOSED**.
+### Transmitere mesaje
+- **tlm_post**: Trimite un mesaj catre un canal, fiind necesar tokenul obtinut cu **tlm_open**.
+### Citire mesaje
+- **tlm_read**: Citeste un mesaj de pe un canal, fiind necesar tokenul obtinut cu **tlm_open**.
+
+# Potentiale imbunatatiri
+* Encriptare mesaje
+* Adaugarea de UID pentru a distinge intre mesajele utilizatorilor
+* Comunicarea cu serverul printr-un pseudoterminal
+* Server concurent (in prezent este iterativ)
+
