@@ -10,7 +10,8 @@ SRCS = \
 	./error_functions.c \
 	./dynamic_list.c \
 	./channel.c \
-	./dir.c
+	./dir.c \
+	./main.c
 
 # Header files
 HDRS = \
