@@ -1,0 +1,16 @@
+[Unit]
+Description=This is our project service for message passing.
+After=network.target
+
+[Service]
+Type=simple
+
+StandardOutput=journal
+StandardError=journal
+
+ExecStart=/usr/bin/telemetry_sv
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
